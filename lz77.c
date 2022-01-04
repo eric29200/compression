@@ -137,7 +137,7 @@ static int lz77_skip(char *buf, struct hash_node_t **hash_table, char *ptr, int 
 
   /* hash skipped bytes */
   for (i = 0; i < len; i++) {
-    index = hash(ptr[0], ptr[1], ptr[2]);
+    index = hash(ptr[i], ptr[i + 1], ptr[i + 2]);
     hash_table[index] = hash_add_node(ptr + i - buf, hash_table[index]);
   }
 
