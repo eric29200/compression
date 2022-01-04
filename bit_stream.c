@@ -75,6 +75,7 @@ void bit_stream_read(struct bit_stream_t *bs, FILE *fp, int full_read)
     fread(bs->buf, sizeof(char), bs->capacity, fp);
     bs->byte_offset = 0;
     bs->bit_offset = 0;
+    return;
   }
 
   /* shift remaining bytes */
