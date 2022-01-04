@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "deflate.h"
 #include "lz77.h"
@@ -44,4 +45,42 @@ void deflate_compress(FILE *fp_in, FILE *fp_out)
 
   /* free bit stream */
   bit_stream_free(bs);
+}
+
+/*
+ * Deflate uncompression.
+ */
+void deflate_uncompress(FILE *fp_in, FILE *fp_out)
+{
+  int last_block, type, len;
+  struct bit_stream_t *bs;
+  char *buf;
+
+  /* create buffer */
+  buf = (char *) xmalloc(DEFLATE_BLOCK_SIZE);
+
+  /* create bit stream */
+  bs = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
+
+  /* read some data */
+  fread(bs->buf, sizeof(char), DEFLATE_BLOCK_SIZE * 4, fp_in);
+
+  /* uncompress */
+  for (last_block = 0; last_block == 0;) {
+    last_block = bit_stream_read_bit(bs);
+    type = bit_stream_read_bits(bs, 2);
+
+    if (type == 1) {
+      len = fix_huffman_uncompress(bs, buf);
+      fwrite(buf, sizeof(char), len, fp_out);
+    }
+
+    break;
+  }
+
+  /* free bit stream */
+  bit_stream_free(bs);
+
+  /* free buffer */
+  free(buf);
 }

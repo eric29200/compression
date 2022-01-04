@@ -6,5 +6,6 @@
 #define DEFLATE_BLOCK_SIZE      0xFFFF
 
 void deflate_compress(FILE *fp_in, FILE *fp_out);
+void deflate_uncompress(FILE *fp_in, FILE *fp_out);
 
 #endif
