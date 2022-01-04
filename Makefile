@@ -4,7 +4,7 @@ CC      := gcc
 
 all: deflate
 
-deflate: mem.o lz77.o deflate.o
+deflate: mem.o bit_stream.o lz77.o deflate.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 .o: .c
