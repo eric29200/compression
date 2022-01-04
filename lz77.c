@@ -186,6 +186,21 @@ struct lz77_node_t *lz77_compress(char *buf, int len)
       ptr += lz77_skip(buf, hash_table, ptr, node->data.match.length - 1);
   }
 
+  /* add remaining bytes */
+  for (; ptr - buf < len; ptr++) {
+    /* create a literal node */
+    node = lz77_create_literal_node(*ptr);
+
+    /* add node to list */
+    if (!lz77_head) {
+      lz77_head = node;
+      lz77_tail = node;
+    } else {
+      lz77_tail->next = node;
+      lz77_tail = node;
+    }
+  }
+
   /* free hash table */
   hash_table_free(hash_table, HASH_SIZE);
 
