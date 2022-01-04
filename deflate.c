@@ -67,17 +67,28 @@ void deflate_uncompress(FILE *fp_in, FILE *fp_out)
 
   /* uncompress */
   for (last_block = 0; last_block == 0;) {
+    /* get block header */
     last_block = bit_stream_read_bit(bs);
     type = bit_stream_read_bits(bs, 2);
 
-    if (type == 1) {
-      len = fix_huffman_uncompress(bs, buf);
-      fwrite(buf, sizeof(char), len, fp_out);
+    /* handle compression type */
+    switch (type) {
+      case 1:
+        len = fix_huffman_uncompress(bs, buf);
+        break;
+      default:
+        fprintf(stderr, "Unknown compression type\n");
+        goto out;
     }
+
+    /* write buffer */
+    if (len > 0)
+      fwrite(buf, sizeof(char), len, fp_out);
 
     break;
   }
 
+out:
   /* free bit stream */
   bit_stream_free(bs);
 
