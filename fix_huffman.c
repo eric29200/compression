@@ -89,11 +89,11 @@ static void __write_length(int length, struct bit_stream_t *bs_out)
     if (length < huff_lengths[i])
       break;
 
-  if (i - 1 < 24) {
-    value = i - 1;
+  if (i < 24) {
+    value = i;
     bit_stream_write_bits(bs_out, value, 7);
   } else {
-    value = 0xC0 + i - 1 - 24;
+    value = 0xC0 + i - 24;
     bit_stream_write_bits(bs_out, value, 8);
   }
 
