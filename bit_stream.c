@@ -14,6 +14,7 @@ struct bit_stream_t *bit_stream_create(size_t capacity)
 
   bs = (struct bit_stream_t *) xmalloc(sizeof(struct bit_stream_t));
   bs->buf = (unsigned char *) xmalloc(capacity);
+  bs->capacity = capacity;
   bs->byte_offset = 0;
   bs->bit_offset = 0;
   memset(bs->buf, 0, capacity);
@@ -59,6 +60,32 @@ void bit_stream_flush(struct bit_stream_t *bs, FILE *fp, int flush_last_byte)
 
 out:
   /* reset bit stream (do no reset bit offset !) */
+  bs->byte_offset = 0;
+}
+
+/*
+ * Read next bits from a file.
+ */
+void bit_stream_read(struct bit_stream_t *bs, FILE *fp, int full_read)
+{
+  int remaining_bytes, i;
+
+  /* full read */
+  if (full_read) {
+    fread(bs->buf, sizeof(char), bs->capacity, fp);
+    bs->byte_offset = 0;
+    bs->bit_offset = 0;
+  }
+
+  /* shift remaining bytes */
+  remaining_bytes = bs->capacity - bs->byte_offset;
+  for (i = 0; i < remaining_bytes; i++)
+    bs->buf[i] = bs->buf[bs->byte_offset + i];
+
+  /* read next bytes */
+  fread(bs->buf + remaining_bytes, sizeof(char), bs->capacity - remaining_bytes, fp);
+
+  /* reset offset (do not reset bit offset !) */
   bs->byte_offset = 0;
 }
 

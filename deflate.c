@@ -63,7 +63,7 @@ void deflate_uncompress(FILE *fp_in, FILE *fp_out)
   bs = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
 
   /* read some data */
-  fread(bs->buf, sizeof(char), DEFLATE_BLOCK_SIZE * 4, fp_in);
+  bit_stream_read(bs, fp_in, 1);
 
   /* uncompress */
   for (last_block = 0; last_block == 0;) {
@@ -85,7 +85,8 @@ void deflate_uncompress(FILE *fp_in, FILE *fp_out)
     if (len > 0)
       fwrite(buf, sizeof(char), len, fp_out);
 
-    break;
+    /* read next data */
+    bit_stream_read(bs, fp_in, 0);
   }
 
 out:
