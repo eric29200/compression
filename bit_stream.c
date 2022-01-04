@@ -34,6 +34,35 @@ void bit_stream_free(struct bit_stream_t *bs)
 }
 
 /*
+ * Flush a bit stream to output file.
+ */
+void bit_stream_flush(struct bit_stream_t *bs, FILE *fp, int flush_last_byte)
+{
+  int last_bits, nb_last_bits;
+
+  /* write all bytes */
+  if (bs->byte_offset > 0)
+    fwrite(bs->buf, sizeof(char), bs->byte_offset, fp);
+
+  /* write last byte */
+  if (flush_last_byte && bs->bit_offset > 0) {
+    nb_last_bits = bs->bit_offset;
+    bs->bit_offset = 0;
+    last_bits = bit_stream_read_bits(bs, nb_last_bits);
+    fwrite(&last_bits, sizeof(char), 1, fp);
+    goto out;
+  }
+
+  /* else copy last bits at the beginning of the stream */
+  if (bs->bit_offset > 0)
+    bs->buf[0] = bs->buf[bs->byte_offset];
+
+out:
+  /* reset bit stream (do no reset bit offset !) */
+  bs->byte_offset = 0;
+}
+
+/*
  * Write a single bit.
  */
 void bit_stream_write_bit(struct bit_stream_t *bs, int value)
