@@ -108,6 +108,10 @@ static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf,
     if (ptr - (buf + match->index) > MAX_DISTANCE)
       break;
 
+    /* no way to improve best match */
+    if (buf[match->index + len_max] != ptr[len_max])
+      continue;
+
     /* compute match length */
     for (i = match->index, match_len = 0; buf[i] == ptr[match_len] && (ptr - buf) + match_len < len; i++)
       if (++match_len >= 256)
