@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 #include "lz77.h"
 #include "mem.h"
@@ -60,7 +59,10 @@ static void hash_table_free(struct hash_node_t **hash_table, int size)
  */
 static inline int hash(unsigned char a, unsigned char b, unsigned char c)
 {
-  return HASH_SIZE * fmod((a + (b << 8) + (c << 16)) * (sqrt(5) - 1) / 2, 1);
+  int h = a;
+  h = (h << 5) - h + b;
+  h = (h << 5) - h + c;
+  return h % HASH_SIZE;
 }
 
 /*
