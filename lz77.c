@@ -4,8 +4,8 @@
 #include "lz77.h"
 #include "mem.h"
 
-#define HASH_SIZE       (1 << 10)
-#define MAX_DISTANCE    (1 << 15)
+#define HASH_SIZE       32768
+#define MAX_DISTANCE    32768
 
 /*
  * Hash table node.
