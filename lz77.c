@@ -18,11 +18,15 @@ struct hash_node_t {
 /*
  * Add a node to a hash table.
  */
-static struct hash_node_t *hash_add_node(int index, struct hash_node_t *head)
+static struct hash_node_t *hash_add_node(struct hash_node_t *nodes, int *nodes_count, int index, struct hash_node_t *head)
 {
   struct hash_node_t *node;
 
-  node = (struct hash_node_t *) xmalloc(sizeof(struct hash_node_t));
+  /* get next free node */
+  node = &nodes[*nodes_count];
+  *nodes_count += 1;
+
+  /* set node */
   node->index = index;
   node->next = head;
 
@@ -30,38 +34,13 @@ static struct hash_node_t *hash_add_node(int index, struct hash_node_t *head)
 }
 
 /*
- * Free a hash table.
- */
-static void hash_node_free(struct hash_node_t *head)
-{
-  if (head->next)
-    hash_node_free(head->next);
-
-  free(head);
-}
-
-/*
- * Free a hash table.
- */
-static void hash_table_free(struct hash_node_t **hash_table, int size)
-{
-  int i;
-
-  for (i = 0; i < size; i++)
-    if (hash_table[i])
-      hash_node_free(hash_table[i]);
-
-  free(hash_table);
-}
-
-/*
  * Hash 3 characters.
  */
-static inline int hash(unsigned char a, unsigned char b, unsigned char c)
+static inline int lz77_hash(char *s)
 {
-  int h = a;
-  h = (h << 5) - h + b;
-  h = (h << 5) - h + c;
+  int h = *s++;
+  h = (h << 5) - h + *s++;
+  h = (h << 5) - h + *s++;
   return h % HASH_SIZE;
 }
 
@@ -143,14 +122,14 @@ static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf,
 /*
  * Skip 'len' bytes (and hash skipped bytes).
  */
-static int lz77_skip(char *buf, struct hash_node_t **hash_table, char *ptr, int len)
+static int lz77_skip(char *buf, struct hash_node_t *nodes, int *nodes_count, struct hash_node_t **hash_table, char *ptr, int len)
 {
   int i, index;
 
   /* hash skipped bytes */
   for (i = 0; i < len; i++) {
-    index = hash(ptr[i], ptr[i + 1], ptr[i + 2]);
-    hash_table[index] = hash_add_node(ptr + i - buf, hash_table[index]);
+    index = lz77_hash(&ptr[i]);
+    hash_table[index] = hash_add_node(nodes, nodes_count, ptr + i - buf, hash_table[index]);
   }
 
   return len;
@@ -162,10 +141,14 @@ static int lz77_skip(char *buf, struct hash_node_t **hash_table, char *ptr, int 
 struct lz77_node_t *lz77_compress(char *buf, int len)
 {
   struct lz77_node_t *lz77_head = NULL, *lz77_tail = NULL;
-  struct hash_node_t **hash_table, *match;
+  struct hash_node_t **hash_table, *nodes, *match;
+  int i, index, nodes_count;
   struct lz77_node_t *node;
-  int i, index;
   char *ptr;
+
+  /* create nodes array */
+  nodes = (struct hash_node_t *) xmalloc(sizeof(struct hash_node_t) * len);
+  nodes_count = 0;
 
   /* create hash table */
   hash_table = (struct hash_node_t **) xmalloc(sizeof(struct hash_node_t *) * HASH_SIZE);
@@ -175,11 +158,11 @@ struct lz77_node_t *lz77_compress(char *buf, int len)
   /* find matching patterns */
   for (ptr = buf; ptr + 2 - buf < len; ptr++) {
     /* compute next 3 characters hash */
-    index = hash(ptr[0], ptr[1], ptr[2]);
+    index = lz77_hash(ptr);
 
     /* add it to hash table */
     match = hash_table[index];
-    hash_table[index] = hash_add_node(ptr - buf, match);
+    hash_table[index] = hash_add_node(nodes, &nodes_count, ptr - buf, match);
 
     /* find best match */
     node = lz77_best_match(match, buf, len, ptr);
@@ -195,7 +178,7 @@ struct lz77_node_t *lz77_compress(char *buf, int len)
 
     /* skip match */
     if (node->is_literal == 0)
-      ptr += lz77_skip(buf, hash_table, ptr, node->data.match.length - 1);
+      ptr += lz77_skip(buf, nodes, &nodes_count, hash_table, ptr, node->data.match.length - 1);
   }
 
   /* add remaining bytes */
@@ -213,8 +196,9 @@ struct lz77_node_t *lz77_compress(char *buf, int len)
     }
   }
 
-  /* free hash table */
-  hash_table_free(hash_table, HASH_SIZE);
+  /* free hash table and nodes */
+  free(hash_table);
+  free(nodes);
 
   /* return lz77 nodes */
   return lz77_head;
