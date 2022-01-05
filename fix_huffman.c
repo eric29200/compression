@@ -148,17 +148,7 @@ void fix_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct
 {
   struct lz77_node_t *node;
 
-  /*
-   * write block header :
-   * - 1st bit :
-   *   - 1 = last block
-   *   - 0 = non last block
-   * - 2nd and 3rd bits :
-   *   - 00 = no compression
-   *   - 01 = compressed with fix huffman codes
-   *   - 10 = compressed with dynamic huffman codes
-   *   - 11 = reserved
-   */
+  /* write block header */
   if (last_block)
     bit_stream_write_bits(bs_out, 5, 3);
   else

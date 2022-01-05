@@ -4,7 +4,7 @@ CC      := gcc
 
 all: compress
 
-compress: mem.o bit_stream.o lz77.o fix_huffman.o deflate.o compress.o
+compress: mem.o bit_stream.o lz77.o no_compression.o fix_huffman.o deflate.o compress.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 .o: .c
