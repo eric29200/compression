@@ -100,26 +100,32 @@ static struct lz77_node_t *lz77_create_match_node(int distance, int length)
 static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf, int len, char *ptr)
 {
   struct hash_node_t *match_max;
-  int match_len, i, len_max = 0;
+  int i, len_max = 0, max;
+  char *match_buf;
+
+  /* compute maximum match length */
+  max = len - (ptr - buf);
+  if (max > 256)
+    max = 256;
 
   /* for each match */
-  for (; match; match = match->next) {
+  for (; match != NULL; match = match->next) {
+    match_buf = buf + match->index;
+
     /* match too far */
-    if (ptr - (buf + match->index) > MAX_DISTANCE)
+    if (ptr - match_buf > MAX_DISTANCE)
       break;
 
     /* no way to improve best match */
-    if (buf[match->index + len_max] != ptr[len_max])
+    if (match_buf[len_max] != ptr[len_max])
       continue;
 
     /* compute match length */
-    for (i = match->index, match_len = 0; buf[i] == ptr[match_len] && (ptr - buf) + match_len < len; i++)
-      if (++match_len >= 256)
-        break;
+    for (i = 0; match_buf[i] == ptr[i] && i < max; i++);
 
     /* update maximum match length */
-    if (match_len > len_max) {
-      len_max = match_len;
+    if (i > len_max) {
+      len_max = i;
       match_max = match;
     }
   }

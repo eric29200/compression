@@ -1,4 +1,4 @@
-CFLAGS  := -Wall -Wextra -O2 -g
+CFLAGS  := -Wall -Wextra -O3
 LDFLAGS	:= -lm
 CC      := gcc
 
