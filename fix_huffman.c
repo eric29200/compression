@@ -2,42 +2,7 @@
 #include <string.h>
 
 #include "fix_huffman.h"
-
-/*
- * Fix huffman lengths.
- */
-static int huff_lengths[29] = {
-  3,   4,  5,   6,   7,   8,   9,  10,  11, 13,
-  15, 17, 19,  23,  27,  31,  35,  43,  51, 59,
-  67, 83, 99, 115, 131, 163, 195, 227, 258
-};
-
-/*
- * Fix huffman lengths extra bits.
- */
-static int huff_lengths_extra_bits[29] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
-  1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
-  4, 4, 4, 4, 5, 5, 5, 5, 0
-};
-
-/*
- * Fix huffman distances.
- */
-static int huff_distances[30] = {
-     1,    2,    3,    4,    5,    7,    9,    13,    17,    25,
-    33,   49,   65,   97,  129,  193,  257,   385,   513,   769,
-  1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577
-};
-
-/*
- * Fix huffman distances extra bits.
- */
-static int huff_distances_extra_bits[30] = {
-  0, 0,  0,  0,  1,  1,  2,  2,  3,  3,
-  4, 4,  5,  5,  6,  6,  7,  7,  8,  8,
-  9, 9, 10, 10, 11, 11, 12, 12, 13, 13
-};
+#include "huffman.h"
 
 /*
  * Write a literal.
@@ -53,59 +18,6 @@ static void __write_literal(unsigned char literal, struct bit_stream_t *bs_out)
     value = 0x190 + literal - 144;
     bit_stream_write_bits(bs_out, value, 9);
   }
-}
-
-/*
- * Write a distance.
- */
-static void __write_distance(int distance, struct bit_stream_t *bs_out)
-{
-  int i;
-
-  for (i = 1; i < 30; i++)
-    if (distance < huff_distances[i])
-      break;
-
-  bit_stream_write_bits(bs_out, i - 1, 5);
-  bit_stream_write_bits(bs_out, distance - huff_distances[i - 1], huff_distances_extra_bits[i - 1]);
-}
-
-/*
- * Read a distance.
- */
-static int __read_distance(int literal, struct bit_stream_t *bs_in)
-{
-  return huff_distances[literal] + bit_stream_read_bits(bs_in, huff_distances_extra_bits[literal]);
-}
-
-/*
- * Write a length.
- */
-static void __write_length(int length, struct bit_stream_t *bs_out)
-{
-  int value, i;
-
-  for (i = 1; i < 29; i++)
-    if (length < huff_lengths[i])
-      break;
-
-  if (i < 24) {
-    value = i;
-    bit_stream_write_bits(bs_out, value, 7);
-  } else {
-    value = 0xC0 + i - 24;
-    bit_stream_write_bits(bs_out, value, 8);
-  }
-
-  bit_stream_write_bits(bs_out, length - huff_lengths[i - 1], huff_lengths_extra_bits[i - 1]);
-}
-
-/*
- * Read a length.
- */
-static int __read_length(int literal, struct bit_stream_t *bs_in)
-{
-  return huff_lengths[literal - 257] + bit_stream_read_bits(bs_in, huff_lengths_extra_bits[literal - 257]);
 }
 
 /*
@@ -160,8 +72,8 @@ void fix_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct
     if (node->is_literal) {
       __write_literal(node->data.literal, bs_out);
     } else {
-      __write_length(node->data.match.length, bs_out);
-      __write_distance(node->data.match.distance, bs_out);
+      huff_encode_length(node->data.match.length, bs_out);
+      huff_encode_distance(node->data.match.distance, bs_out);
     }
   }
 
@@ -191,8 +103,8 @@ int fix_huffman_uncompress(struct bit_stream_t *bs_in, char *buf_out)
     }
 
     /* decode lz77 length and distance */
-    length = __read_length(literal, bs_in);
-    distance = __read_distance(bit_stream_read_bits(bs_in, 5), bs_in);
+    length = huff_decode_length(literal, bs_in);
+    distance = huff_decode_distance(bit_stream_read_bits(bs_in, 5), bs_in);
 
     /* duplicate pattern */
     for (i = 0; i < length; i++, n++)
