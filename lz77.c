@@ -5,7 +5,6 @@
 #include "mem.h"
 
 #define HASH_SIZE       32768
-#define MAX_DISTANCE    32768
 
 /*
  * Hash table node.
@@ -38,9 +37,11 @@ static struct hash_node_t *hash_add_node(struct hash_node_t *nodes, int *nodes_c
  */
 static inline int lz77_hash(char *s)
 {
-  int h = *s++;
-  h = (h << 5) - h + *s++;
-  h = (h << 5) - h + *s++;
+  int h, i;
+
+  for (i = 1, h = *s++; i < LZ77_MIN_LEN; i++)
+    h = (h << 5) - h + *s++;
+
   return h % HASH_SIZE;
 }
 
@@ -86,15 +87,15 @@ static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf,
 
   /* compute maximum match length */
   max = len - (ptr - buf);
-  if (max > 256)
-    max = 256;
+  if (max > LZ77_MAX_LEN)
+    max = LZ77_MAX_LEN;
 
   /* for each match */
   for (; match != NULL; match = match->next) {
     match_buf = buf + match->index;
 
     /* match too far */
-    if (ptr - match_buf > MAX_DISTANCE)
+    if (ptr - match_buf > LZ77_MAX_DISTANCE)
       break;
 
     /* no way to improve best match */
@@ -112,7 +113,7 @@ static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf,
   }
 
   /* match too short : create a literal */
-  if (len_max < 3)
+  if (len_max < LZ77_MIN_LEN)
     return lz77_create_literal_node(*ptr);
 
   /* create a match node */
@@ -156,7 +157,7 @@ struct lz77_node_t *lz77_compress(char *buf, int len)
     hash_table[i] = NULL;
 
   /* find matching patterns */
-  for (ptr = buf; ptr + 2 - buf < len; ptr++) {
+  for (ptr = buf; ptr + LZ77_MIN_LEN - 1 - buf < len; ptr++) {
     /* compute next 3 characters hash */
     index = lz77_hash(ptr);
 

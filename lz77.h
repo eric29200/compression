@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 
+#define LZ77_MAX_DISTANCE    32768
+#define LZ77_MIN_LEN         3
+#define LZ77_MAX_LEN         256
 /*
  * LZ77 match.
  */
