@@ -21,6 +21,42 @@ static void __write_literal(unsigned char literal, struct bit_stream_t *bs_out)
 }
 
 /*
+ * Write a distance.
+ */
+void __write_distance(int distance, struct bit_stream_t *bs_out)
+{
+  int i;
+
+  /* write distance index */
+  i = huff_distance_index(distance);
+  bit_stream_write_bits(bs_out, i, 5);
+
+  /* write distance extra bits */
+  huff_encode_distance_extra_bits(distance, bs_out);
+}
+
+/*
+ * Write a length.
+ */
+void __write_length(int length, struct bit_stream_t *bs_out)
+{
+  int value, i;
+
+  /* write length index */
+  i = huff_length_index(length) + 1;
+  if (i < 24) {
+    value = i;
+    bit_stream_write_bits(bs_out, value, 7);
+  } else {
+    value = 0xC0 + i - 24;
+    bit_stream_write_bits(bs_out, value, 8);
+  }
+
+  /* write length extra bits */
+  huff_encode_length_extra_bits(length, bs_out);
+}
+
+/*
  * Read next literal character.
  */
 static int __read_next_literal(struct bit_stream_t *bs_in)
@@ -72,8 +108,8 @@ void fix_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct
     if (node->is_literal) {
       __write_literal(node->data.literal, bs_out);
     } else {
-      huff_encode_length(node->data.match.length, bs_out);
-      huff_encode_distance(node->data.match.distance, bs_out);
+      __write_length(node->data.match.length, bs_out);
+      __write_distance(node->data.match.distance, bs_out);
     }
   }
 
@@ -103,7 +139,7 @@ int fix_huffman_uncompress(struct bit_stream_t *bs_in, char *buf_out)
     }
 
     /* decode lz77 length and distance */
-    length = huff_decode_length(literal, bs_in);
+    length = huff_decode_length(literal - 257, bs_in);
     distance = huff_decode_distance(bit_stream_read_bits(bs_in, 5), bs_in);
 
     /* duplicate pattern */

@@ -49,7 +49,7 @@ void bit_stream_flush(struct bit_stream_t *bs, FILE *fp, int flush_last_byte)
   if (flush_last_byte && bs->bit_offset > 0) {
     nb_last_bits = bs->bit_offset;
     bs->bit_offset = 0;
-    last_bits = bit_stream_read_bits(bs, nb_last_bits);
+    last_bits = bit_stream_read_bits(bs, nb_last_bits) << (8 - nb_last_bits);
     fwrite(&last_bits, sizeof(char), 1, fp);
     goto out;
   }

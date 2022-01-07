@@ -5,6 +5,7 @@
 #include "lz77.h"
 #include "no_compression.h"
 #include "fix_huffman.h"
+#include "dyn_huffman.h"
 #include "bit_stream.h"
 #include "mem.h"
 
@@ -13,13 +14,14 @@
  */
 void deflate_compress(FILE *fp_in, FILE *fp_out)
 {
-  struct bit_stream_t *bs_fix_huff, *bs_no, *bs;
+  struct bit_stream_t *bs_fix_huff, *bs_dyn_huff, *bs_no, *bs;
   struct lz77_node_t *lz77_nodes = NULL;
   char *block;
   int len;
 
   /* create bit streams */
   bs_fix_huff = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
+  bs_dyn_huff = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
   bs_no = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
 
   /* allocate block buffer */
@@ -38,12 +40,17 @@ void deflate_compress(FILE *fp_in, FILE *fp_out)
     /* fix huffman compression */
     fix_huffman_compress(lz77_nodes, feof(fp_in), bs_fix_huff);
 
+    /* dynamic huffman compression */
+    dyn_huffman_compress(lz77_nodes, feof(fp_in), bs_dyn_huff);
+
     /* choose compression method */
-    if (bs_fix_huff->byte_offset < len + 4) {
-      bs = bs_fix_huff;
-    } else {
+    if (len + 4 < bs_fix_huff->byte_offset && len + 4 < bs_dyn_huff->byte_offset) {
       no_compression_compress(block, len, feof(fp_in), bs_no);
       bs = bs_no;
+    } else if (bs_fix_huff->byte_offset < bs_dyn_huff->byte_offset) {
+      bs = bs_fix_huff;
+    } else {
+      bs = bs_dyn_huff;
     }
 
     /* flush bit stream */
@@ -53,6 +60,11 @@ void deflate_compress(FILE *fp_in, FILE *fp_out)
     bs_fix_huff->buf[0] = bs->buf[0];
     bs_fix_huff->byte_offset = 0;
     bs_fix_huff->bit_offset = bs->bit_offset;
+
+    /* reset dynamic huffman bit stream (keep first byte) */
+    bs_dyn_huff->buf[0] = bs->buf[0];
+    bs_dyn_huff->byte_offset = 0;
+    bs_dyn_huff->bit_offset = bs->bit_offset;
 
     /* reset no compression bit stream (keep first byte) */
     bs_no->buf[0] = bs->buf[0];
@@ -65,6 +77,7 @@ void deflate_compress(FILE *fp_in, FILE *fp_out)
 
   /* free bit streams */
   bit_stream_free(bs_fix_huff);
+  bit_stream_free(bs_dyn_huff);
   bit_stream_free(bs_no);
 }
 
@@ -99,6 +112,9 @@ void deflate_uncompress(FILE *fp_in, FILE *fp_out)
         break;
       case 1:
         len = fix_huffman_uncompress(bs, buf);
+        break;
+      case 2:
+        len = dyn_huffman_uncompress(bs, buf);
         break;
       default:
         fprintf(stderr, "Unknown compression type\n");
