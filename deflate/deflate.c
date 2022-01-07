@@ -6,8 +6,8 @@
 #include "no_compression.h"
 #include "fix_huffman.h"
 #include "dyn_huffman.h"
-#include "bit_stream.h"
-#include "mem.h"
+#include "../utils/bit_stream.h"
+#include "../utils/mem.h"
 
 /*
  * Deflate compression.

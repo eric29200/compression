@@ -1,7 +1,7 @@
 #ifndef _HUFFMAN_H_
 #define _HUFFMAN_H_
 
-#include "bit_stream.h"
+#include "../utils/bit_stream.h"
 
 #define HUFF_NB_LENGTH_CODES          29
 #define HUFF_NB_DISTANCE_CODES        30

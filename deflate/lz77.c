@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "lz77.h"
-#include "mem.h"
+#include "../utils/mem.h"
 
 #define HASH_SIZE       32768
 

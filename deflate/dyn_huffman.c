@@ -4,8 +4,8 @@
 
 #include "dyn_huffman.h"
 #include "huffman.h"
-#include "heap.h"
-#include "mem.h"
+#include "../utils/heap.h"
+#include "../utils/mem.h"
 
 #define DYN_HUFF_NB_CODES             (256 + 1 + HUFF_NB_LENGTH_CODES)
 

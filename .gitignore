@@ -1,3 +1,2 @@
 *.o
-deflate
-compress
+compression_test
