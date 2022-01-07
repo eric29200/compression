@@ -99,7 +99,7 @@ static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf,
       break;
 
     /* no way to improve best match */
-    if (match_buf[len_max] != ptr[len_max])
+    if (len_max >= max || match_buf[len_max] != ptr[len_max])
       continue;
 
     /* compute match length */
