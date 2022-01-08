@@ -191,13 +191,13 @@ static void __write_huff_header(struct huff_node_t **huff_nodes_lit, struct huff
       n++;
 
   /* write number of literal nodes */
-  bit_stream_write_bits(bs_out, n, sizeof(int) * 8);
+  bit_stream_write_bits(bs_out, n, 9);
 
   /* write literal dictionnary */
   for (i = 0; i < DYN_HUFF_NB_CODES; i++) {
     if (huff_nodes_lit[i] != NULL) {
-      bit_stream_write_bits(bs_out, huff_nodes_lit[i]->item, sizeof(int) * 8);
-      bit_stream_write_bits(bs_out, huff_nodes_lit[i]->freq, sizeof(int) * 8);
+      bit_stream_write_bits(bs_out, huff_nodes_lit[i]->item, 9);
+      bit_stream_write_bits(bs_out, huff_nodes_lit[i]->freq, 16);
     }
   }
 
@@ -207,13 +207,13 @@ static void __write_huff_header(struct huff_node_t **huff_nodes_lit, struct huff
       n++;
 
   /* write number of distance nodes */
-  bit_stream_write_bits(bs_out, n, sizeof(int) * 8);
+  bit_stream_write_bits(bs_out, n, 5);
 
   /* write distance dictionnary */
   for (i = 0, n = 0; i < HUFF_NB_DISTANCE_CODES; i++) {
     if (huff_nodes_dist[i] != NULL) {
-      bit_stream_write_bits(bs_out, huff_nodes_dist[i]->item, sizeof(int) * 8);
-      bit_stream_write_bits(bs_out, huff_nodes_dist[i]->freq, sizeof(int) * 8);
+      bit_stream_write_bits(bs_out, huff_nodes_dist[i]->item, 5);
+      bit_stream_write_bits(bs_out, huff_nodes_dist[i]->freq, 16);
     }
   }
 }
@@ -223,26 +223,24 @@ static void __write_huff_header(struct huff_node_t **huff_nodes_lit, struct huff
  */
 static void __read_huff_header(struct bit_stream_t *bs_in, int *freq_lit, int *freq_dist)
 {
-  int i, n, item, freq;
+  int i, n, item;
 
   /* read number of literal nodes */
-  n = bit_stream_read_bits(bs_in, sizeof(int) * 8);
+  n = bit_stream_read_bits(bs_in, 9);
 
   /* read literal nodes */
   for (i = 0; i < n; i++) {
-    item = bit_stream_read_bits(bs_in, sizeof(int) * 8);
-    freq = bit_stream_read_bits(bs_in, sizeof(int) * 8);
-    freq_lit[item] = freq;
+    item = bit_stream_read_bits(bs_in, 9);
+    freq_lit[item] = bit_stream_read_bits(bs_in, 16);
   }
 
   /* read number of distance nodes */
-  n = bit_stream_read_bits(bs_in, sizeof(int) * 8);
+  n = bit_stream_read_bits(bs_in, 5);
 
   /* read distance nodes */
   for (i = 0; i < n; i++) {
-    item = bit_stream_read_bits(bs_in, sizeof(int) * 8);
-    freq = bit_stream_read_bits(bs_in, sizeof(int) * 8);
-    freq_dist[item] = freq;
+    item = bit_stream_read_bits(bs_in, 5);
+    freq_dist[item] = bit_stream_read_bits(bs_in, 16);
   }
 }
 
