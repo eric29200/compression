@@ -3,8 +3,8 @@
 
 #include "../utils/bit_stream.h"
 
-#define HUFF_NB_LENGTH_CODES          29
-#define HUFF_NB_DISTANCE_CODES        30
+#define HUFF_NB_LENGTH_CODES			29
+#define HUFF_NB_DISTANCE_CODES			30
 
 int huff_distance_index(int distance);
 int huff_length_index(int length);

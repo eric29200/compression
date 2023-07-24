@@ -9,13 +9,13 @@
  */
 void *xmalloc(size_t size)
 {
-  void *ptr;
+	void *ptr;
 
-  ptr = malloc(size);
-  if (!ptr)
-    exit(2);
+	ptr = malloc(size);
+	if (!ptr)
+		exit(2);
 
-  return ptr;
+	return ptr;
 }
 
 /*
@@ -23,11 +23,11 @@ void *xmalloc(size_t size)
  */
 void *xrealloc(void *ptr, size_t size)
 {
-  ptr = realloc(ptr, size);
-  if (!ptr)
-    exit(2);
+	ptr = realloc(ptr, size);
+	if (!ptr)
+		exit(2);
 
-  return ptr;
+	return ptr;
 }
 
 /*
@@ -35,8 +35,8 @@ void *xrealloc(void *ptr, size_t size)
  */
 void xfree(void *ptr)
 {
-  if (ptr)
-    free(ptr);
+	if (ptr)
+		free(ptr);
 }
 
 /*
@@ -44,13 +44,13 @@ void xfree(void *ptr)
  */
 char *xstrdup(const char *s)
 {
-  char *sc;
+	char *sc;
 
-  sc = strdup(s);
-  if (!sc)
-    exit(2);
+	sc = strdup(s);
+	if (!sc)
+		exit(2);
 
-  return sc;
+	return sc;
 }
 
 /*
@@ -58,8 +58,8 @@ char *xstrdup(const char *s)
  */
 char *xstrndup(const char *s, size_t n)
 {
-  size_t len = strnlen(s, n);
-  char *new = (char *) xmalloc(len + 1);
-  new[len] = '\0';
-  return (char *) memcpy(new, s, len);
+	size_t len = strnlen(s, n);
+	char *new = (char *) xmalloc(len + 1);
+	new[len] = '\0';
+	return (char *) memcpy(new, s, len);
 }

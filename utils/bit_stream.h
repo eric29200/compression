@@ -4,10 +4,10 @@
 #include <stdio.h>
 
 struct bit_stream_t {
-  unsigned char *buf;
-  size_t capacity;
-  int byte_offset;
-  int bit_offset;
+	unsigned char *		buf;
+	size_t 			capacity;
+	int 			byte_offset;
+	int 			bit_offset;
 };
 
 struct bit_stream_t *bit_stream_create(size_t capacity);
