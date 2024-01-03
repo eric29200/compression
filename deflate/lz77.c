@@ -35,7 +35,7 @@ static struct hash_node_t *hash_add_node(struct hash_node_t *nodes, int *nodes_c
 /*
  * Hash 3 characters.
  */
-static inline int lz77_hash(char *s)
+static inline int lz77_hash(unsigned char *s)
 {
 	int h, i;
 
@@ -79,11 +79,11 @@ static struct lz77_node_t *lz77_create_match_node(int distance, int length)
 /*
  * Find best matching pattern.
  */
-static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf, int len, char *ptr)
+static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, unsigned char *buf, int len, unsigned char *ptr)
 {
 	struct hash_node_t *match_max;
 	int i, len_max = 0, max;
-	char *match_buf;
+	unsigned char *match_buf;
 
 	/* compute maximum match length */
 	max = len - (ptr - buf);
@@ -123,7 +123,7 @@ static struct lz77_node_t *lz77_best_match(struct hash_node_t *match, char *buf,
 /*
  * Skip 'len' bytes (and hash skipped bytes).
  */
-static int lz77_skip(char *buf, struct hash_node_t *nodes, int *nodes_count, struct hash_node_t **hash_table, char *ptr, int len)
+static int lz77_skip(unsigned char *buf, struct hash_node_t *nodes, int *nodes_count, struct hash_node_t **hash_table, unsigned char *ptr, int len)
 {
 	int i, index;
 
@@ -139,13 +139,13 @@ static int lz77_skip(char *buf, struct hash_node_t *nodes, int *nodes_count, str
 /*
  * Compress a buffer with LZ77 algorithm.
  */
-struct lz77_node_t *lz77_compress(char *buf, int len)
+struct lz77_node_t *lz77_compress(unsigned char *buf, int len)
 {
 	struct lz77_node_t *lz77_head = NULL, *lz77_tail = NULL;
 	struct hash_node_t **hash_table, *nodes, *match;
 	int i, index, nodes_count;
 	struct lz77_node_t *node;
-	char *ptr;
+	unsigned char *ptr;
 
 	/* create nodes array */
 	nodes = (struct hash_node_t *) xmalloc(sizeof(struct hash_node_t) * len);

@@ -26,7 +26,7 @@ struct lz77_node_t {
 	struct lz77_node_t *		next;
 };
 
-struct lz77_node_t *lz77_compress(char *buf, int len);
+struct lz77_node_t *lz77_compress(unsigned char *buf, int len);
 void lz77_free_nodes(struct lz77_node_t *node);
 
 #endif

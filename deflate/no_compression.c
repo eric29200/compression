@@ -5,7 +5,7 @@
 /*
  * Compress a block (actually no compression).
  */
-void no_compression_compress(char *block, int len, int last_block, struct bit_stream_t *bs_out)
+void no_compression_compress(unsigned char *block, int len, int last_block, struct bit_stream_t *bs_out)
 {
 	int i;
 
@@ -26,7 +26,7 @@ void no_compression_compress(char *block, int len, int last_block, struct bit_st
 /*
  * Uncompress a block.
  */
-int no_compression_uncompress(struct bit_stream_t *bs_in, char *buf_out)
+int no_compression_uncompress(struct bit_stream_t *bs_in, unsigned char *buf_out)
 {
 	int len, i;
 

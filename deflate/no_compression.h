@@ -3,7 +3,7 @@
 
 #include "../utils/bit_stream.h"
 
-void no_compression_compress(char *block, int len, int last_block, struct bit_stream_t *bs_out);
-int no_compression_uncompress(struct bit_stream_t *bs_in, char *buf_out);
+void no_compression_compress(unsigned char *block, int len, int last_block, struct bit_stream_t *bs_out);
+int no_compression_uncompress(struct bit_stream_t *bs_in, unsigned char *buf_out);
 
 #endif

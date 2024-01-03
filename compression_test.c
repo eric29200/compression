@@ -17,8 +17,7 @@ static void usage(char *app_name)
 /*
  * Execute a compression/decompression test.
  */
-static int compression_test(const char *input_file, const char *method, void (*compression)(FILE *, FILE *),
-														void (*uncompression)(FILE *, FILE *))
+static int compression_test(const char *input_file, const char *method, void (*compression)(FILE *, FILE *), void (*uncompression)(FILE *, FILE *))
 {
 	off_t input_size, output_size;
 	FILE *fp_in, *fp_out;

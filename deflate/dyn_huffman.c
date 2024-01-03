@@ -17,7 +17,7 @@
 struct huff_node_t {
 	int 			item;
 	int 			freq;
-	char 			huff_code[DYN_HUFF_NB_CODES / 8 + 1];
+	unsigned char		huff_code[DYN_HUFF_NB_CODES / 8 + 1];
 	struct huff_node_t *	left;
 	struct huff_node_t *	right;
 };
@@ -119,7 +119,7 @@ static struct huff_node_t *huffman_tree(int *freq, size_t nb_characters)
 /*
  * Build huffman codes.
  */
-static void huffman_tree_build_codes(struct huff_node_t *root, char *code, int top)
+static void huffman_tree_build_codes(struct huff_node_t *root, unsigned char *code, int top)
 {
 	/* build huffman code on left (encode with a zero) */
 	if (root->left) {
@@ -306,7 +306,7 @@ static int __read_huff_item(struct huff_node_t *huff_tree, struct bit_stream_t *
 /*
  * Decode a block with huffman codes.
  */
-static int __read_huff_content(struct huff_node_t *huff_tree_lit, struct huff_node_t *huff_tree_dist, struct bit_stream_t *bs_in, char *buf_out)
+static int __read_huff_content(struct huff_node_t *huff_tree_lit, struct huff_node_t *huff_tree_dist, struct bit_stream_t *bs_in, unsigned char *buf_out)
 {
 	int literal, length, distance, i, n;
 
@@ -346,7 +346,7 @@ void dyn_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct
 	struct huff_node_t *huff_nodes_dist[HUFF_NB_DISTANCE_CODES] = { NULL };
 	struct huff_node_t *huff_nodes_lit[DYN_HUFF_NB_CODES] = { NULL };
 	struct huff_node_t *huff_tree_lit, *huff_tree_dist;
-	char code[DYN_HUFF_NB_CODES];
+	unsigned char code[DYN_HUFF_NB_CODES];
 
 	/* write block header */
 	if (last_block)
@@ -386,7 +386,7 @@ void dyn_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct
 /*
  * Uncompress lz77 nodes with fix huffman codes.
  */
-int dyn_huffman_uncompress(struct bit_stream_t *bs_in, char *buf_out)
+int dyn_huffman_uncompress(struct bit_stream_t *bs_in, unsigned char *buf_out)
 {
 	int freq_lit[DYN_HUFF_NB_CODES] = { 0 }, freq_dist[HUFF_NB_DISTANCE_CODES] = { 0 };
 	struct huff_node_t *huff_tree_lit, *huff_tree_dist;

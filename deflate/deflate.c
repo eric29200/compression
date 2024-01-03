@@ -16,7 +16,7 @@ void deflate_compress(FILE *fp_in, FILE *fp_out)
 {
 	struct bit_stream_t *bs_fix_huff, *bs_dyn_huff, *bs_no, *bs;
 	struct lz77_node_t *lz77_nodes = NULL;
-	char *block;
+	unsigned char *block;
 	int len;
 
 	/* create bit streams */
@@ -25,7 +25,7 @@ void deflate_compress(FILE *fp_in, FILE *fp_out)
 	bs_no = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
 
 	/* allocate block buffer */
-	block = (char *) xmalloc(DEFLATE_BLOCK_SIZE);
+	block = (unsigned char *) xmalloc(DEFLATE_BLOCK_SIZE);
 
 	/* compress block by block */
 	for (;;) {
@@ -88,10 +88,10 @@ void deflate_uncompress(FILE *fp_in, FILE *fp_out)
 {
 	int last_block, type, len;
 	struct bit_stream_t *bs;
-	char *buf;
+	unsigned char *buf;
 
 	/* create buffer */
-	buf = (char *) xmalloc(DEFLATE_BLOCK_SIZE);
+	buf = (unsigned char *) xmalloc(DEFLATE_BLOCK_SIZE);
 
 	/* create bit stream */
 	bs = bit_stream_create(DEFLATE_BLOCK_SIZE * 4);
