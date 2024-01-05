@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include "lz78.h"
-#include "trie.h"
+#include "../utils/trie.h"
 #include "../utils/mem.h"
 
 #define GROW_SIZE		64
