@@ -2,31 +2,41 @@
 
 #include "no_compression.h"
 
-/*
- * Compress a block (actually no compression).
+/**
+ * @brief Compress a block.
+ * 
+ * @param block 	input block
+ * @param len 		block length
+ * @param last_block 	is this last block ?
+ * @param bs_out 	output bit stream
  */
-void no_compression_compress(unsigned char *block, int len, int last_block, struct bit_stream_t *bs_out)
+void deflate_no_compression_compress(uint8_t *block, int len, int last_block, struct bit_stream *bs_out)
 {
 	int i;
 
 	/* write block header */
 	if (last_block)
-		bit_stream_write_bits(bs_out, 4, 3);
+		bit_stream_write_bits(bs_out, 4, 3, 0);
 	else
-		bit_stream_write_bits(bs_out, 0, 3);
+		bit_stream_write_bits(bs_out, 0, 3, 0);
 
 	/* write length */
-	bit_stream_write_bits(bs_out, len & 0xFFFF, 16);
+	bit_stream_write_bits(bs_out, len & 0xFFFF, 16, 0);
 
 	/* write block */
 	for (i = 0; i < len; i++)
-		bit_stream_write_bits(bs_out, block[i], 8);
+		bit_stream_write_bits(bs_out, block[i], 8, 0);
 }
 
-/*
- * Uncompress a block.
+/**
+ * @brief Uncompress a block.
+ * 
+ * @param bs_in 	input bit stream
+ * @param buf_out 	output buffer
+ * 
+ * @return block length
  */
-int no_compression_uncompress(struct bit_stream_t *bs_in, unsigned char *buf_out)
+int deflate_no_compression_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 {
 	int len, i;
 

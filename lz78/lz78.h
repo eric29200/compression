@@ -1,13 +1,11 @@
-#ifndef _DEFLATE_H_
-#define _DEFLATE_H_
+#ifndef _LZ78_H_
+#define _LZ78_H_
 
 #include <stdio.h>
 #include <stdint.h>
 
-#define DEFLATE_BLOCK_SIZE	0xFFFF
-
 /**
- * @brief Compress a buffer with deflate algorithm.
+ * @brief Compress a buffer with LZ78 algorithm.
  * 
  * @param src 		input buffer
  * @param src_len 	input buffer length
@@ -15,10 +13,10 @@
  *
  * @return output buffer
  */
-uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len);
+uint8_t *lz78_compress(uint8_t *src, size_t src_len, size_t *dst_len);
 
 /**
- * @brief Uncompress a buffer with deflate algorithm.
+ * @brief Uncompress a buffer with LZ78 algorithm.
  * 
  * @param src 		input buffer
  * @param src_len 	input buffer length
@@ -26,6 +24,6 @@ uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len);
  *
  * @return output buffer
  */
-uint8_t *deflate_uncompress(uint8_t *src, size_t src_len, size_t *dst_len);
+uint8_t *lz78_uncompress(uint8_t *src, size_t src_len, size_t *dst_len);
 
 #endif

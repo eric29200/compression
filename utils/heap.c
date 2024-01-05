@@ -2,20 +2,30 @@
 #include <stdlib.h>
 
 #include "heap.h"
-#include "mem.h"
+#include "../utils/mem.h"
 
 /*
  * Create a heap.
  */
-struct heap_t *heap_create(int type, int capacity, int (*compare_func)(const void *, const void *))
+
+/**
+ * @brief Create a heap.
+ * 
+ * @param type 			heap type (min or max)
+ * @param capacity 		heap capacity
+ * @param compare_func 		compare function
+ * 
+ * @return new heap
+ */
+struct heap *heap_create(int type, int capacity, int (*compare_func)(const void *, const void *))
 {
-	struct heap_t *heap;
+	struct heap *heap;
 
 	/* check type */
 	if (type != HEAP_MIN && type != HEAP_MAX)
 		return NULL;
 
-	heap = (struct heap_t *) xmalloc(sizeof(struct heap_t));
+	heap = (struct heap *) xmalloc(sizeof(struct heap));
 	heap->type = type;
 	heap->capacity = capacity;
 	heap->size = 0;
@@ -25,10 +35,12 @@ struct heap_t *heap_create(int type, int capacity, int (*compare_func)(const voi
 	return heap;
 }
 
-/*
- * Free a heap.
+/**
+ * @brief Free a heap.
+ * 
+ * @param heap 			heap
  */
-void heap_free(struct heap_t *heap)
+void heap_free(struct heap *heap)
 {
 	if (heap) {
 		xfree(heap->data);
@@ -36,40 +48,27 @@ void heap_free(struct heap_t *heap)
 	}
 }
 
-/*
- * Free a heap.
+/**
+ * @brief Swap 2 items in a heap.
+ * 
+ * @param heap 		heap
+ * @param i 		first item index
+ * @param j 		second item index
  */
-void heap_free_full(struct heap_t *heap, void (*free_func)(void *))
-{
-	int i;
-
-	if (heap) {
-		if (heap->data) {
-			for (i = 0; i < heap->capacity; i++)
-				if (heap->data[i])
-					free_func(heap->data[i]);
-
-			free(heap->data);
-		}
-
-		free(heap);
-	}
-}
-
-/*
- * Swap 2 items of a heap.
- */
-static void __heap_swap(struct heap_t *heap, int i, int j)
+static void __heap_swap(struct heap *heap, int i, int j)
 {
 	void *tmp = heap->data[i];
 	heap->data[i] = heap->data[j];
 	heap->data[j] = tmp;
 }
 
-/*
- * Min heapify at index i.
+/**
+ * @brief Min heapify at index i.
+ * 
+ * @param heap		heap
+ * @param i		index
  */
-static void __min_heapify(struct heap_t *heap, int i)
+static void __min_heapify(struct heap *heap, int i)
 {
 	int smallest, left, right;
 
@@ -94,10 +93,13 @@ static void __min_heapify(struct heap_t *heap, int i)
 	}
 }
 
-/*
- * Max heapify at index i.
+/**
+ * @brief Max heapify at index i.
+ * 
+ * @param heap		heap
+ * @param i		index
  */
-static void __max_heapify(struct heap_t *heap, int i)
+static void __max_heapify(struct heap *heap, int i)
 {
 	int largest, left, right;
 
@@ -122,10 +124,13 @@ static void __max_heapify(struct heap_t *heap, int i)
 	}
 }
 
-/*
- * Insert data into a heap.
+/**
+ * @brief Insert data into a heap.
+ * 
+ * @param heap 		heap
+ * @param data 		data
  */
-void heap_insert(struct heap_t *heap, void *data)
+void heap_insert(struct heap *heap, void *data)
 {
 	int i, cmp;
 
@@ -146,10 +151,12 @@ void heap_insert(struct heap_t *heap, void *data)
 	}
 }
 
-/*
- * Get minimum value from heap.
+/**
+ * @brief Get minimum value from heap.
+ * 
+ * @return minimum value
  */
-void *heap_min(struct heap_t *heap)
+void *heap_min(struct heap *heap)
 {
 	void *root;
 
@@ -172,10 +179,12 @@ void *heap_min(struct heap_t *heap)
 	return root;
 }
 
-/*
- * Get maximum value from heap.
+/**
+ * @brief Get maximum value from heap.
+ * 
+ * @return maximum value
  */
-void *heap_max(struct heap_t *heap)
+void *heap_max(struct heap *heap)
 {
 	void *root;
 

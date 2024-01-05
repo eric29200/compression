@@ -3,98 +3,34 @@
 #include <string.h>
 
 #include "bit_stream.h"
-#include "mem.h"
+#include "../utils/mem.h"
 
-/*
- * Create a bit stream (capacity in byte).
+#define GROW_SIZE		64
+
+/**
+ * @brief Grow a bit stream.
+ * 
+ * @param bs 	bit stream
  */
-struct bit_stream_t *bit_stream_create(size_t capacity)
+static void __bit_stream_grow(struct bit_stream *bs)
 {
-	struct bit_stream_t *bs;
-
-	bs = (struct bit_stream_t *) xmalloc(sizeof(struct bit_stream_t));
-	bs->buf = (unsigned char *) xmalloc(capacity);
-	bs->capacity = capacity;
-	bs->byte_offset = 0;
-	bs->bit_offset = 0;
-	memset(bs->buf, 0, capacity);
-
-	return bs;
+	bs->capacity += GROW_SIZE;
+	bs->buf = (uint8_t *) xrealloc(bs->buf, bs->capacity);
 }
 
-/*
- * Free a bit stream.
+/**
+ * @brief Write a single bit.
+ * 
+ * @param bs 		bit stream
+ * @param value 	value
+ * @param grow_bs	grow bit stream if needed ?
  */
-void bit_stream_free(struct bit_stream_t *bs)
+void bit_stream_write_bit(struct bit_stream *bs, int value, int grow_bs)
 {
-	if (!bs)
-		return;
+	/* check need to grow bit stream */
+	if (grow_bs && bs->byte_offset >= bs->capacity)
+		__bit_stream_grow(bs);
 
-	xfree(bs->buf);
-	free(bs);
-}
-
-/*
- * Flush a bit stream to output file.
- */
-void bit_stream_flush(struct bit_stream_t *bs, FILE *fp, int flush_last_byte)
-{
-	int last_bits, nb_last_bits;
-
-	/* write all bytes */
-	if (bs->byte_offset > 0)
-		fwrite(bs->buf, sizeof(char), bs->byte_offset, fp);
-
-	/* write last byte */
-	if (flush_last_byte && bs->bit_offset > 0) {
-		nb_last_bits = bs->bit_offset;
-		bs->bit_offset = 0;
-		last_bits = bit_stream_read_bits(bs, nb_last_bits) << (8 - nb_last_bits);
-		fwrite(&last_bits, sizeof(char), 1, fp);
-		goto out;
-	}
-
-	/* else copy last bits at the beginning of the stream */
-	if (bs->bit_offset > 0)
-		bs->buf[0] = bs->buf[bs->byte_offset];
-
-out:
-	/* reset bit stream (do no reset bit offset !) */
-	bs->byte_offset = 0;
-}
-
-/*
- * Read next bits from a file.
- */
-void bit_stream_read(struct bit_stream_t *bs, FILE *fp, int full_read)
-{
-	int remaining_bytes, i;
-
-	/* full read */
-	if (full_read) {
-		fread(bs->buf, sizeof(char), bs->capacity, fp);
-		bs->byte_offset = 0;
-		bs->bit_offset = 0;
-		return;
-	}
-
-	/* shift remaining bytes */
-	remaining_bytes = bs->capacity - bs->byte_offset;
-	for (i = 0; i < remaining_bytes; i++)
-		bs->buf[i] = bs->buf[bs->byte_offset + i];
-
-	/* read next bytes */
-	fread(bs->buf + remaining_bytes, sizeof(char), bs->capacity - remaining_bytes, fp);
-
-	/* reset offset (do not reset bit offset !) */
-	bs->byte_offset = 0;
-}
-
-/*
- * Write a single bit.
- */
-void bit_stream_write_bit(struct bit_stream_t *bs, int value)
-{
 	if (bs->bit_offset == 0) {
 		bs->buf[bs->byte_offset] = value << 7;
 		bs->bit_offset = 1;
@@ -111,38 +47,47 @@ void bit_stream_write_bit(struct bit_stream_t *bs, int value)
 	}
 }
 
-/*
- * Write bits.
+/**
+ * @brief Write bits.
+ * 
+ * @param bs 		bit stream
+ * @param value 	value
+ * @param nr_bits	number of bits to write
+ * @param grow_bs	grow bit stream if needed ?
  */
-void bit_stream_write_bits(struct bit_stream_t *bs, int value, int nb_bits)
+void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits, int grow_bs)
 {
 	int first_byte_bits, last_byte_bits, full_bytes, i;
 
 	/* check number of bits */
-	if (nb_bits <= 0)
+	if (nr_bits <= 0)
 		return;
+
+	/* check need to grow bit stream */
+	if (grow_bs && bs->byte_offset + nr_bits / 8 >= bs->capacity)
+		__bit_stream_grow(bs);
 
 	/* write first byte */
 	first_byte_bits = 8 - bs->bit_offset;
 	if (first_byte_bits != 8) {
-		if (nb_bits < first_byte_bits) {
-			bs->buf[bs->byte_offset] |= value << (first_byte_bits - nb_bits);
-			bs->bit_offset += nb_bits;
+		if (nr_bits < first_byte_bits) {
+			bs->buf[bs->byte_offset] |= value << (first_byte_bits - nr_bits);
+			bs->bit_offset += nr_bits;
 		} else {
-			bs->buf[bs->byte_offset] |= value >> (nb_bits - first_byte_bits);
+			bs->buf[bs->byte_offset] |= value >> (nr_bits - first_byte_bits);
 			bs->byte_offset++;
 			bs->bit_offset = 0;
 		}
 
-		nb_bits -= first_byte_bits;
+		nr_bits -= first_byte_bits;
 
-		if (nb_bits <= 0)
+		if (nr_bits <= 0)
 			return;
 	}
 
 	/* write last byte */
-	last_byte_bits = nb_bits % 8;
-	full_bytes = nb_bits / 8;
+	last_byte_bits = nr_bits % 8;
+	full_bytes = nr_bits / 8;
 	if (last_byte_bits != 0) {
 		bs->buf[bs->byte_offset + full_bytes] = value << (8 - last_byte_bits);
 		value >>= last_byte_bits;
@@ -159,10 +104,14 @@ void bit_stream_write_bits(struct bit_stream_t *bs, int value, int nb_bits)
 	bs->byte_offset += full_bytes;
 }
 
-/*
- * Read a single bit.
+/**
+ * @brief Read a single bit.
+ * 
+ * @param bs 		bit stream
+ * 
+ * @return value
  */
-int bit_stream_read_bit(struct bit_stream_t *bs)
+int bit_stream_read_bit(struct bit_stream *bs)
 {
 	int value;
 
@@ -184,40 +133,45 @@ int bit_stream_read_bit(struct bit_stream_t *bs)
 	return value;
 }
 
-/*
- * Read bits.
+/**
+ * @brief Read bits.
+ * 
+ * @param bs 		bit stream
+ * @param nr_bits 	number of bits to read
+ * 
+ * @return value
  */
-int bit_stream_read_bits(struct bit_stream_t *bs, int nb_bits)
+int bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
 {
 	int first_byte_bits, last_byte_bits, full_bytes, value, i;
 
 	/* check number of bits */
-	if (nb_bits <= 0)
+	if (nr_bits <= 0)
 		return 0;
 
 	/* read first byte */
 	first_byte_bits = 8 - bs->bit_offset;
 	if (first_byte_bits != 8) {
-		if (nb_bits < first_byte_bits) {
-			value = bs->buf[bs->byte_offset] >> (first_byte_bits - nb_bits);
-			value &= (1 << nb_bits) - 1;
-			bs->bit_offset += nb_bits;
+		if (nr_bits < first_byte_bits) {
+			value = bs->buf[bs->byte_offset] >> (first_byte_bits - nr_bits);
+			value &= (1 << nr_bits) - 1;
+			bs->bit_offset += nr_bits;
 		} else {
 			value = bs->buf[bs->byte_offset] & ((1 << first_byte_bits) - 1);
 			bs->byte_offset++;
 			bs->bit_offset = 0;
 		}
 
-		nb_bits -= first_byte_bits;
+		nr_bits -= first_byte_bits;
 
-		if (nb_bits <= 0)
+		if (nr_bits <= 0)
 			return value;
 	} else {
 		value = 0;
 	}
 
 	/* copy middle bytes */
-	full_bytes = nb_bits / 8;
+	full_bytes = nr_bits / 8;
 	for (i = 0; i < full_bytes; i++) {
 		value <<= 8;
 		value |= bs->buf[bs->byte_offset + i];
@@ -225,7 +179,7 @@ int bit_stream_read_bits(struct bit_stream_t *bs, int nb_bits)
 
 
 	/* read last byte */
-	last_byte_bits = nb_bits % 8;
+	last_byte_bits = nr_bits % 8;
 	if (last_byte_bits != 0) {
 		value <<= last_byte_bits;
 		value |= bs->buf[bs->byte_offset + full_bytes] >> (8 - last_byte_bits);
@@ -236,4 +190,45 @@ int bit_stream_read_bits(struct bit_stream_t *bs, int nb_bits)
 	bs->byte_offset += full_bytes;
 
 	return value;
+}
+
+/**
+ * @brief Flush a bit stream to a buffer.
+ * 
+ * @param bs 			bit stream
+ * @param buf 			output buffer
+ * @param flush_last_byte 	flush last byte ?
+ *
+ * @return number of bytes written
+ */
+size_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte)
+{
+	uint8_t last_bits;
+	int nr_last_bits;
+	size_t n = 0;
+
+	/* write all bytes */
+	if (bs->byte_offset > 0) {
+		memcpy(buf, bs->buf, bs->byte_offset);
+		n = bs->byte_offset;
+	}
+
+	/* write last byte */
+	if (flush_last_byte && bs->bit_offset > 0) {
+		nr_last_bits = bs->bit_offset;
+		bs->bit_offset = 0;
+		last_bits = bit_stream_read_bits(bs, nr_last_bits) << (8 - nr_last_bits);
+		buf[n++] = last_bits;
+		goto out;
+	}
+
+	/* else copy last bits at the beginning of the stream */
+	if (bs->bit_offset > 0)
+		bs->buf[0] = bs->buf[bs->byte_offset];
+
+out:
+	/* reset bit stream (do no reset bit offset !) */
+	bs->byte_offset = 0;
+
+	return n;
 }

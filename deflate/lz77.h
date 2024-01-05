@@ -2,6 +2,7 @@
 #define _LZ77_H_
 
 #include <stdio.h>
+#include <stdint.h>
 
 #define LZ77_MAX_DISTANCE	32768
 #define LZ77_MIN_LEN		3
@@ -9,7 +10,7 @@
 /*
  * LZ77 match.
  */
-struct lz77_match_t {
+struct lz77_match {
 	int 				distance;
 	int 				length;
 };
@@ -17,16 +18,16 @@ struct lz77_match_t {
 /*
  * LZ77 node (literal or match).
  */
-struct lz77_node_t {
+struct lz77_node {
 	int 				is_literal;
 	union {
-		unsigned char 		literal;
-		struct lz77_match_t 	match;
+		uint8_t 		literal;
+		struct lz77_match 	match;
 	} data;
-	struct lz77_node_t *		next;
+	struct lz77_node *		next;
 };
 
-struct lz77_node_t *lz77_compress(unsigned char *buf, int len);
-void lz77_free_nodes(struct lz77_node_t *node);
+struct lz77_node *deflate_lz77_compress(uint8_t *buf, int len);
+void deflate_lz77_free_nodes(struct lz77_node *node);
 
 #endif

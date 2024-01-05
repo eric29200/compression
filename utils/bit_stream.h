@@ -2,21 +2,65 @@
 #define _BIT_STREAM_H_
 
 #include <stdio.h>
+#include <stdint.h>
 
-struct bit_stream_t {
-	unsigned char *		buf;
-	size_t 			capacity;
-	int 			byte_offset;
-	int 			bit_offset;
+/**
+ * @brief Bit stream.
+ */
+struct bit_stream {
+	uint8_t *		buf;			/* data */
+	size_t 			capacity;		/* capacity */
+	size_t 			byte_offset;		/* current byte position */
+	size_t 			bit_offset;		/* current bit position (in last byte) */
 };
 
-struct bit_stream_t *bit_stream_create(size_t capacity);
-void bit_stream_free(struct bit_stream_t *bs);
-void bit_stream_flush(struct bit_stream_t *bs, FILE *fp, int flush_last_byte);
-void bit_stream_read(struct bit_stream_t *bs, FILE *fp, int full_read);
-void bit_stream_write_bit(struct bit_stream_t *bs, int value);
-void bit_stream_write_bits(struct bit_stream_t *bs, int value, int nb_bits);
-int bit_stream_read_bit(struct bit_stream_t *bs);
-int bit_stream_read_bits(struct bit_stream_t *bs, int nb_bits);
+/**
+ * @brief Write a single bit.
+ * 
+ * @param bs 		bit stream
+ * @param value 	value
+ * @param grow_bs	grow bit stream if needed ?
+ */
+void bit_stream_write_bit(struct bit_stream *bs, int value, int grow_bs);
+
+/**
+ * @brief Write bits.
+ * 
+ * @param bs 		bit stream
+ * @param value 	value
+ * @param nr_bits	number of bits to write
+ * @param grow_bs	grow bit stream if needed ?
+ */
+void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits, int grow_bs);
+
+/**
+ * @brief Read a single bit.
+ * 
+ * @param bs 		bit stream
+ * 
+ * @return value
+ */
+int bit_stream_read_bit(struct bit_stream *bs);
+
+/**
+ * @brief Read bits.
+ * 
+ * @param bs 		bit stream
+ * @param nr_bits 	number of bits to read
+ * 
+ * @return value
+ */
+int bit_stream_read_bits(struct bit_stream *bs, int nr_bits);
+
+/**
+ * @brief Flush a bit stream to a buffer.
+ * 
+ * @param bs 			bit stream
+ * @param buf 			output buffer
+ * @param flush_last_byte 	flush last byte ?
+ *
+ * @return number of bytes written
+ */
+size_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte);
 
 #endif

@@ -4,62 +4,75 @@
 #include "fix_huffman.h"
 #include "huffman.h"
 
-/*
- * Write a literal.
+/**
+ * @brief Write a literal.
+ * 
+ * @param literal 	literal
+ * @param bs_out 	output bit stream
  */
-static void __write_literal(unsigned char literal, struct bit_stream_t *bs_out)
+static void __write_literal(uint8_t literal, struct bit_stream *bs_out)
 {
 	unsigned int value = 0;
 
 	if (literal < 144) {
 		value = 0x30 + literal;
-		bit_stream_write_bits(bs_out, value, 8);
+		bit_stream_write_bits(bs_out, value, 8, 0);
 	} else {
 		value = 0x190 + literal - 144;
-		bit_stream_write_bits(bs_out, value, 9);
+		bit_stream_write_bits(bs_out, value, 9, 0);
 	}
 }
 
-/*
- * Write a distance.
+/**
+ * @brief Write a distance.
+ * 
+ * @param distance 	distance
+ * @param bs_out 	output bit stream
  */
-void __write_distance(int distance, struct bit_stream_t *bs_out)
+static void __write_distance(int distance, struct bit_stream *bs_out)
 {
 	int i;
 
 	/* write distance index */
-	i = huff_distance_index(distance);
-	bit_stream_write_bits(bs_out, i, 5);
+	i = deflate_fix_huffman_distance_index(distance);
+	bit_stream_write_bits(bs_out, i, 5, 0);
 
 	/* write distance extra bits */
-	huff_encode_distance_extra_bits(distance, bs_out);
+	deflate_fix_huffman_encode_distance_extra_bits(bs_out, distance);
 }
 
-/*
- * Write a length.
+/**
+ * @brief Write a length.
+ * 
+ * @param length 	length
+ * @param bs_out 	output bit stream
  */
-void __write_length(int length, struct bit_stream_t *bs_out)
+static void __write_length(int length, struct bit_stream *bs_out)
 {
 	int value, i;
 
 	/* write length index */
-	i = huff_length_index(length) + 1;
+	i = deflate_fix_huffman_length_index(length) + 1;
 	if (i < 24) {
 		value = i;
-		bit_stream_write_bits(bs_out, value, 7);
+		bit_stream_write_bits(bs_out, value, 7, 0);
 	} else {
 		value = 0xC0 + i - 24;
-		bit_stream_write_bits(bs_out, value, 8);
+		bit_stream_write_bits(bs_out, value, 8, 0);
 	}
 
 	/* write length extra bits */
-	huff_encode_length_extra_bits(length, bs_out);
+	deflate_fix_huffman_encode_length_extra_bits(bs_out, length);
 }
 
-/*
- * Read next literal character.
+/**
+ * @brief Read next literal character.
+ * 
+ * @param bs_int	input bit stream
+ * 
+ * @return next literal character
  */
-static int __read_next_literal(struct bit_stream_t *bs_in)
+static int __read_next_literal(struct bit_stream *bs_in)
 {
 	unsigned int value;
 
@@ -89,18 +102,22 @@ static int __read_next_literal(struct bit_stream_t *bs_in)
 	return -1;
 }
 
-/*
- * Compress lz77 nodes with fix huffman alphabet.
+/**
+ * @brief Compress lz77 nodes with fix huffman alphabet.
+ * 
+ * @param lz77_nodes 	LZ77 nodes
+ * @param last_block 	is this last block ?
+ * @param bs_out 	output bit stream
  */
-void fix_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct bit_stream_t *bs_out)
+void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, struct bit_stream *bs_out)
 {
-	struct lz77_node_t *node;
+	struct lz77_node *node;
 
 	/* write block header */
 	if (last_block)
-		bit_stream_write_bits(bs_out, 5, 3);
+		bit_stream_write_bits(bs_out, 5, 3, 0);
 	else
-		bit_stream_write_bits(bs_out, 1, 3);
+		bit_stream_write_bits(bs_out, 1, 3, 0);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {
@@ -114,13 +131,18 @@ void fix_huffman_compress(struct lz77_node_t *lz77_nodes, int last_block, struct
 	}
 
 	/* write end of block */
-	bit_stream_write_bits(bs_out, 0, 7);
+	bit_stream_write_bits(bs_out, 0, 7, 0);
 }
 
-/*
- * Uncompress lz77 nodes with fix huffman codes.
+/**
+ * @brief Uncompress LZ77 nodes with fix huffman codes.
+ * 
+ * @param bs_in 	input bit stream
+ * @param buf_out 	output buffer
+ * 
+ * @return number of bytes written in output buffer
  */
-int fix_huffman_uncompress(struct bit_stream_t *bs_in, unsigned char *buf_out)
+int deflate_fix_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 {
 	int literal, length, distance, n, i;
 
@@ -139,8 +161,8 @@ int fix_huffman_uncompress(struct bit_stream_t *bs_in, unsigned char *buf_out)
 		}
 
 		/* decode lz77 length and distance */
-		length = huff_decode_length(literal - 257, bs_in);
-		distance = huff_decode_distance(bit_stream_read_bits(bs_in, 5), bs_in);
+		length = deflate_fix_huffman_decode_length(bs_in, literal - 257);
+		distance = deflate_fix_huffman_decode_distance(bs_in, bit_stream_read_bits(bs_in, 5));
 
 		/* duplicate pattern */
 		for (i = 0; i < length; i++, n++)
