@@ -14,6 +14,33 @@
 
 #define GROW_SIZE		64
 #define MAX(x, y)		((x) > (y) ? (x) : (y))
+  
+/**
+ * @brief Grow output buffer if needed.
+ * 
+ * @param dst 			output buffer
+ * @param buf_out 		current position in output buffer
+ * @param dst_capacity 		output buffer capacity
+ * @param size_needed		size needed
+ */
+static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity, size_t size_needed)
+{
+	size_t pos;
+
+	/* no need to grower buffer */
+	if ((size_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
+		return;
+
+	/* remember position */
+	pos = *buf_out - *dst;
+
+	/* reallocate destination buffer */
+	*dst_capacity += GROW_SIZE;
+	*dst = xrealloc(*dst, *dst_capacity);
+	
+	/* set new position */
+	*buf_out = *dst + pos;
+}
 
 /**
  * @brief Compress a buffer with LZ78 algorithm.
@@ -28,7 +55,7 @@ uint8_t *lz78_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 {
 	struct trie *root = NULL, *node, *next;
 	uint8_t *dst, *buf_in, *buf_out, c;
-	size_t dst_capacity, pos;
+	size_t dst_capacity;
 	int id = 0;
 
 	/* set input buffer */
@@ -47,16 +74,16 @@ uint8_t *lz78_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	buf_out += sizeof(int);
 
 	/* insert root node */
-	root = node = trie_insert(root, 0, id++);
+	root = node = trie_insert(NULL, 0, id++);
 
 	/* create dictionnary */
 	while (buf_in < src + src_len) {
 		/* get next character */
 		c = *buf_in++;
 
-		/* find character in trie */
+		/* if character is found in the trie, remember node and go to next character */
 		next = trie_find(node, c);
-		if (next && buf_in < src + src_len) {
+		if (next) {
 			node = next;
 			continue;
 		}
@@ -64,25 +91,26 @@ uint8_t *lz78_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 		/* insert new character in trie */
 		trie_insert(node, c, id++);
 
-		/* check if we need to grow destination buffer */
-		if ((size_t) (buf_out - dst + sizeof(int) + 1) > dst_capacity) {
-			/* remember position */
-			pos = buf_out - dst;
+		/* grow destination buffer if needed */
+		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(int) + sizeof(uint8_t));
 
-			dst_capacity += GROW_SIZE;
-			dst = xrealloc(dst, dst_capacity);
-			
-			/* set new position */
-			buf_out = dst + pos;
-		}
-
-		/* write compressed data */
+		/* write node id and next character */
 		*((int *) buf_out) = node->id;
 		buf_out += sizeof(int);
 		*buf_out++ = c;
 
 		/* go back to root */
 		node = root;
+	}
+
+	/* write last node id */
+	if (node != root) {
+		/* grow destination buffer if needed */
+		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(int));
+
+		/* write node id */
+		*((int *) buf_out) = node->id;
+		buf_out += sizeof(int);
 	}
 
 	/* write final dict size */
@@ -137,18 +165,12 @@ uint8_t *lz78_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
 
 	/* uncompress */
 	while (buf_in < src + src_len) {
-		/* read lz78 pair */
+		/* read node id */
 		parent_id = *((int *) buf_in);
 		buf_in += sizeof(int);
-		c = *buf_in++;
-
-		/* get parent */
+		
+		/* get parent node */
 		parent = dict[parent_id];
-
-		/* insert new node */
-		trie_insert(parent, c, id++);
-		node = trie_find(parent, c);
-		dict[node->id] = node;
 
 		/* compute dict entry size */
 		for (node = parent, i = 0; node->parent != NULL; node = node->parent, i++);
@@ -156,8 +178,21 @@ uint8_t *lz78_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
 		/* write decoded string */
 		for (node = parent, j = 0; node->parent != NULL; node = node->parent, j++)
 			buf_out[i - 1 - j] = node->val;
-
+		
+		/* update output buffer position */
 		buf_out += i;
+
+		/* no next character : exit */
+		if (buf_in >= src + src_len)
+			break;
+
+		/* read next character */
+		c = *buf_in++;
+
+		/* insert new node */
+		trie_insert(parent, c, id++);
+		node = trie_find(parent, c);
+		dict[node->id] = node;
 
 		/* write next character */
 		*buf_out++ = c;
