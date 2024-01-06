@@ -66,6 +66,33 @@ static void __lz77_match(uint8_t *window, uint8_t *buf, size_t len, struct lz77_
 }
 
 /**
+ * @brief Grow output buffer if needed.
+ * 
+ * @param dst 			output buffer
+ * @param buf_out 		current position in output buffer
+ * @param dst_capacity 		output buffer capacity
+ * @param size_needed		size needed
+ */
+static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity, size_t size_needed)
+{
+	size_t pos;
+
+	/* no need to grower buffer */
+	if ((size_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
+		return;
+
+	/* remember position */
+	pos = *buf_out - *dst;
+
+	/* reallocate destination buffer */
+	*dst_capacity += GROW_SIZE;
+	*dst = xrealloc(*dst, *dst_capacity);
+	
+	/* set new position */
+	*buf_out = *dst + pos;
+}
+
+/**
  * @brief Compress a buffer with LZ77 algorithm.
  * 
  * @param src 		input buffer
@@ -77,7 +104,7 @@ static void __lz77_match(uint8_t *window, uint8_t *buf, size_t len, struct lz77_
 uint8_t *lz77_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 {
 	uint8_t *dst, *window, *buf_in, *buf_out;
-	size_t window_size, pos, dst_capacity;
+	size_t window_size, dst_capacity;
 	struct lz77_node node;
 
 	/* allocate destination buffer */
@@ -102,18 +129,8 @@ uint8_t *lz77_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 		/* find best match */
 		__lz77_match(window, buf_in, src + src_len - buf_in - 1, &node);
 
-		/* check if we need to grow destination buffer */
-		if ((size_t) (buf_out - dst + 3) > dst_capacity) {
-			/* remember position */
-			pos = buf_out - dst;
-
-			/* grow destination */
-			dst_capacity += GROW_SIZE;
-			dst = xrealloc(dst, dst_capacity);
-			
-			/* set new position */
-			buf_out = dst + pos;
-		}
+		/* grow destination buffer if needed */
+		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(uint8_t) * 3);
 
 		/* write match or literal */
 		*buf_out++ = node.off;

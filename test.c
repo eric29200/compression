@@ -1,6 +1,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "rle/rle.h"
 #include "lz77/lz77.h"
 #include "lz78/lz78.h"
 #include "lzw/lzw.h"
@@ -8,11 +9,12 @@
 #include "deflate/deflate.h"
 #include "utils/mem.h"
 
-#define COMPRESSION_LZ77	1
-#define COMPRESSION_LZ78	2
-#define COMPRESSION_LZW		3
-#define COMPRESSION_HUFFMAN	4
-#define COMPRESSION_DEFLATE	5
+#define COMPRESSION_RLE		1
+#define COMPRESSION_LZ77	2
+#define COMPRESSION_LZ78	3
+#define COMPRESSION_LZW		4
+#define COMPRESSION_HUFFMAN	5
+#define COMPRESSION_DEFLATE	6
 
 /**
  * @brief Read input file.
@@ -80,6 +82,9 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 	/* compress */
 	start = clock();
 	switch (compression_algorithm) {
+		case COMPRESSION_RLE:
+			zip = rle_compress(src, src_len, &zip_len);
+			break;
 		case COMPRESSION_LZ77:
 			zip = lz77_compress(src, src_len, &zip_len);
 			break;
@@ -105,6 +110,9 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 	/* uncompress */
 	start = clock();
 	switch (compression_algorithm) {
+		case COMPRESSION_RLE:
+			unzip = rle_uncompress(zip, zip_len, &unzip_len);
+			break;
 		case COMPRESSION_LZ77:
 			unzip = lz77_uncompress(zip, zip_len, &unzip_len);
 			break;
@@ -138,18 +146,6 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 	xfree(unzip);
 }
 
-int main1()
-{
-	char src[] = "Hellolla";
-	uint8_t *zip;
-	size_t zip_len, unzip_len;
-
-	zip = lzw_compress((uint8_t *) src, strlen(src), &zip_len);
-	printf("%s\n", lzw_uncompress(zip, zip_len, &unzip_len));
-
-	return 0;
-}
-
 int main(int argc, char **argv)
 {
 	size_t src_len;
@@ -167,6 +163,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	/* compression test */
+	compression_test(src, src_len, COMPRESSION_RLE, "RLE");
 	compression_test(src, src_len, COMPRESSION_LZ77, "LZ77");
 	compression_test(src, src_len, COMPRESSION_LZ78, "LZ78");
 	compression_test(src, src_len, COMPRESSION_LZW, "LZW");
