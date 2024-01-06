@@ -81,7 +81,7 @@ uint8_t *lz77_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	struct lz77_node node;
 
 	/* allocate destination buffer */
-	dst_capacity = MAX(src_len, 32);
+	dst_capacity = MAX(src_len, WINDOW_SIZE + sizeof(size_t));
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
