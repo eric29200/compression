@@ -3,14 +3,16 @@
 
 #include "lz77/lz77.h"
 #include "lz78/lz78.h"
+#include "lzw/lzw.h"
 #include "huffman/huffman.h"
 #include "deflate/deflate.h"
 #include "utils/mem.h"
 
 #define COMPRESSION_LZ77	1
 #define COMPRESSION_LZ78	2
-#define COMPRESSION_HUFFMAN	3
-#define COMPRESSION_DEFLATE	4
+#define COMPRESSION_LZW		3
+#define COMPRESSION_HUFFMAN	4
+#define COMPRESSION_DEFLATE	5
 
 /**
  * @brief Read input file.
@@ -84,6 +86,9 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 		case COMPRESSION_LZ78:
 			zip = lz78_compress(src, src_len, &zip_len);
 			break;
+		case COMPRESSION_LZW:
+			zip = lzw_compress(src, src_len, &zip_len);
+			break;
 		case COMPRESSION_HUFFMAN:
 			zip = huffman_compress(src, src_len, &zip_len);
 			break;
@@ -106,6 +111,9 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 		case COMPRESSION_LZ78:
 			unzip = lz78_uncompress(zip, zip_len, &unzip_len);
 			break;
+		case COMPRESSION_LZW:
+			unzip = lzw_uncompress(zip, zip_len, &unzip_len);
+			break;
 		case COMPRESSION_HUFFMAN:
 			unzip = huffman_uncompress(zip, zip_len, &unzip_len);
 			break;
@@ -120,7 +128,7 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 	unzip_time = (double) (end - start) / CLOCKS_PER_SEC;
 
 	/* print statistics */
-	printf("Compresstion status : %s\n", memcmp(src, unzip, unzip_len) == 0 ? "OK" : "ERROR");
+	printf("Compresstion status : %s\n", src_len == unzip_len && memcmp(src, unzip, unzip_len) == 0 ? "OK" : "ERROR");
 	printf("Compression time : %f sec\n", zip_time);
 	printf("Uncompression time : %f sec\n", unzip_time);
 	printf("Compression ratio : %f\n", (double) src_len / (double) zip_len);
@@ -128,6 +136,18 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 	/* free memory */
 	xfree(zip);
 	xfree(unzip);
+}
+
+int main1()
+{
+	char src[] = "Hellolla";
+	uint8_t *zip;
+	size_t zip_len, unzip_len;
+
+	zip = lzw_compress((uint8_t *) src, strlen(src), &zip_len);
+	printf("%s\n", lzw_uncompress(zip, zip_len, &unzip_len));
+
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -149,6 +169,7 @@ int main(int argc, char **argv)
 	/* compression test */
 	compression_test(src, src_len, COMPRESSION_LZ77, "LZ77");
 	compression_test(src, src_len, COMPRESSION_LZ78, "LZ78");
+	compression_test(src, src_len, COMPRESSION_LZW, "LZW");
 	compression_test(src, src_len, COMPRESSION_HUFFMAN, "HUFFMAN");
 	compression_test(src, src_len, COMPRESSION_DEFLATE, "DEFLATE");
 
