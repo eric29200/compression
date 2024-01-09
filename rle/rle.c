@@ -60,14 +60,14 @@ uint8_t *rle_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	/* compress */
 	for (i = 0; i < src_len;) {
 		/* look for same following characters */
-		for (j = 0; i + j < src_len && src[i] == src[i + j]; j++);
+		for (j = 0; j < UINT8_MAX && i + j < src_len && src[i] == src[i + j]; j++);
 
 		/* grow buffer if needed */
 		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(size_t) + sizeof(uint8_t));
 
 		/* write number of occurences */
-		*((size_t *) buf_out) = j;
-		buf_out += sizeof(size_t);
+		*((uint8_t *) buf_out) = (uint8_t) j;
+		buf_out += sizeof(uint8_t);
 
 		/* write character */
 		*buf_out++ = src[i];
@@ -93,8 +93,8 @@ uint8_t *rle_compress(uint8_t *src, size_t src_len, size_t *dst_len)
  */
 uint8_t *rle_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
 {
-	uint8_t *dst, *buf_in, *buf_out, c;
-	size_t i, nr;
+	uint8_t *dst, *buf_in, *buf_out, nr, c;
+	size_t i;
 
 	/* set input buffer */
 	buf_in = src;
@@ -108,11 +108,8 @@ uint8_t *rle_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
 
 	/* uncompress */
 	while (buf_in < src + src_len) {
-		/* read number of occurences */
-		nr = *((size_t *) buf_in);
-		buf_in += sizeof(size_t);
-
-		/* read character */
+		/* read number of occurences and character */
+		nr = *buf_in++;
 		c = *buf_in++;
 
 		/* write charaters to output */
