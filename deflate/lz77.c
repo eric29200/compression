@@ -1,29 +1,35 @@
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "lz77.h"
 #include "../utils/mem.h"
 
-#define HASH_SIZE	32768
+#define LZ77_HASH_SIZE		32768
 
-/*
- * Hash table node.
+/**
+ * @brief Hash table node.
  */
 struct hash_node {
 	int 			index;
 	struct hash_node *	next;
 };
 
-/*
- * Add a node to a hash table.
+/**
+ * @brief Add a node to a hash table.
+ * 
+ * @param hash_nodes 		nodes
+ * @param nr_hash_nodes		number of nodes in hash table
+ * @param index 		node index
+ * @param head 			head of nodes
+ * 
+ * @return new node
  */
-static struct hash_node *__hash_add_node(struct hash_node *nodes, int *nodes_count, int index, struct hash_node *head)
+static struct hash_node *__hash_add_node(struct hash_node *hash_nodes, int *nr_hash_nodes, int index, struct hash_node *head)
 {
 	struct hash_node *node;
 
 	/* get next free node */
-	node = &nodes[*nodes_count];
-	*nodes_count += 1;
+	node = &hash_nodes[*nr_hash_nodes];
+	*nr_hash_nodes += 1;
 
 	/* set node */
 	node->index = index;
@@ -46,7 +52,7 @@ static inline int __lz77_hash(uint8_t *s)
 	for (i = 1, h = *s++; i < LZ77_MIN_LEN; i++)
 		h = (h << 5) - h + *s++;
 
-	return h % HASH_SIZE;
+	return h % LZ77_HASH_SIZE;
 }
 
 /**
@@ -99,7 +105,7 @@ static struct lz77_node *__lz77_create_match_node(int distance, int length)
  *
  * @return LZ77 node (match or literal)
  */
-static struct lz77_node *__lz77_best_match(struct hash_node *match, uint8_t *buf, int len, uint8_t *ptr)
+static struct lz77_node *__lz77_best_match(struct hash_node *hash_match, uint8_t *buf, int len, uint8_t *ptr)
 {
 	struct hash_node *match_max;
 	int i, len_max = 0, max;
@@ -111,8 +117,8 @@ static struct lz77_node *__lz77_best_match(struct hash_node *match, uint8_t *buf
 		max = LZ77_MAX_LEN;
 
 	/* for each match */
-	for (; match != NULL; match = match->next) {
-		match_buf = buf + match->index;
+	for (; hash_match != NULL; hash_match = hash_match->next) {
+		match_buf = buf + hash_match->index;
 
 		/* match too far */
 		if (ptr - match_buf > LZ77_MAX_DISTANCE)
@@ -128,7 +134,7 @@ static struct lz77_node *__lz77_best_match(struct hash_node *match, uint8_t *buf
 		/* update maximum match length */
 		if (i > len_max) {
 			len_max = i;
-			match_max = match;
+			match_max = hash_match;
 		}
 	}
 
@@ -145,21 +151,21 @@ static struct lz77_node *__lz77_best_match(struct hash_node *match, uint8_t *buf
  * 
  * @param buf 		input buffer
  * @param nodes 	hash nodes
- * @param nodes_count 	number of hash nodes
+ * @param nr_hash_nodes	number of hash nodes
  * @param hash_table 	hash table
  * @param ptr 		current pointer in input buffer
  * @param len 		number of bytes to skip
  * 
  * @return number of bytes skipped
  */
-static int lz77_skip(uint8_t *buf, struct hash_node *nodes, int *nodes_count, struct hash_node **hash_table, uint8_t *ptr, int len)
+static int lz77_skip(uint8_t *buf, struct hash_node *hash_nodes, int *nr_hash_nodes, struct hash_node **hash_table, uint8_t *ptr, int len)
 {
 	int i, index;
 
 	/* hash skipped bytes */
 	for (i = 0; i < len; i++) {
 		index = __lz77_hash(&ptr[i]);
-		hash_table[index] = __hash_add_node(nodes, nodes_count, ptr + i - buf, hash_table[index]);
+		hash_table[index] = __hash_add_node(hash_nodes, nr_hash_nodes, ptr + i - buf, hash_table[index]);
 	}
 
 	return len;
@@ -176,18 +182,18 @@ static int lz77_skip(uint8_t *buf, struct hash_node *nodes, int *nodes_count, st
 struct lz77_node *deflate_lz77_compress(uint8_t *buf, int len)
 {
 	struct lz77_node *lz77_head = NULL, *lz77_tail = NULL;
-	struct hash_node **hash_table, *nodes, *match;
-	int i, index, nodes_count;
-	struct lz77_node *node;
+	struct hash_node **hash_table, *hash_nodes, *hash_match;
+	int i, index, nr_hash_nodes;
+	struct lz77_node *lz77_node;
 	uint8_t *ptr;
 
 	/* create nodes array */
-	nodes = (struct hash_node *) xmalloc(sizeof(struct hash_node) * len);
-	nodes_count = 0;
+	hash_nodes = (struct hash_node *) xmalloc(sizeof(struct hash_node) * len);
+	nr_hash_nodes = 0;
 
 	/* create hash table */
-	hash_table = (struct hash_node **) xmalloc(sizeof(struct hash_node *) * HASH_SIZE);
-	for (i = 0; i < HASH_SIZE; i++)
+	hash_table = (struct hash_node **) xmalloc(sizeof(struct hash_node *) * LZ77_HASH_SIZE);
+	for (i = 0; i < LZ77_HASH_SIZE; i++)
 		hash_table[i] = NULL;
 
 	/* find matching patterns */
@@ -196,44 +202,44 @@ struct lz77_node *deflate_lz77_compress(uint8_t *buf, int len)
 		index = __lz77_hash(ptr);
 
 		/* add it to hash table */
-		match = hash_table[index];
-		hash_table[index] = __hash_add_node(nodes, &nodes_count, ptr - buf, match);
+		hash_match = hash_table[index];
+		hash_table[index] = __hash_add_node(hash_nodes, &nr_hash_nodes, ptr - buf, hash_match);
 
 		/* find best match */
-		node = __lz77_best_match(match, buf, len, ptr);
+		lz77_node = __lz77_best_match(hash_match, buf, len, ptr);
 
 		/* add node to list */
 		if (!lz77_head) {
-			lz77_head = node;
-			lz77_tail = node;
+			lz77_head = lz77_node;
+			lz77_tail = lz77_node;
 		} else {
-			lz77_tail->next = node;
-			lz77_tail = node;
+			lz77_tail->next = lz77_node;
+			lz77_tail = lz77_node;
 		}
 
 		/* skip match */
-		if (node->is_literal == 0)
-			ptr += lz77_skip(buf, nodes, &nodes_count, hash_table, ptr, node->data.match.length - 1);
+		if (lz77_node->is_literal == 0)
+			ptr += lz77_skip(buf, hash_nodes, &nr_hash_nodes, hash_table, ptr, lz77_node->data.match.length - 1);
 	}
 
 	/* add remaining bytes */
 	for (; ptr - buf < len; ptr++) {
 		/* create a literal node */
-		node = __lz77_create_literal_node(*ptr);
+		lz77_node = __lz77_create_literal_node(*ptr);
 
 		/* add node to list */
 		if (!lz77_head) {
-			lz77_head = node;
-			lz77_tail = node;
+			lz77_head = lz77_node;
+			lz77_tail = lz77_node;
 		} else {
-			lz77_tail->next = node;
-			lz77_tail = node;
+			lz77_tail->next = lz77_node;
+			lz77_tail = lz77_node;
 		}
 	}
 
 	/* free hash table and nodes */
-	free(hash_table);
-	free(nodes);
+	xfree(hash_table);
+	xfree(hash_nodes);
 
 	/* return lz77 nodes */
 	return lz77_head;
@@ -250,5 +256,5 @@ void deflate_lz77_free_nodes(struct lz77_node *node)
 		return;
 
 	deflate_lz77_free_nodes(node->next);
-	free(node);
+	xfree(node);
 }
