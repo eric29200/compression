@@ -10,6 +10,7 @@
  */
 
 #include <string.h>
+#include <endian.h>
 
 #include "huffman.h"
 #include "../utils/mem.h"
@@ -211,62 +212,85 @@ static void __compute_frequencies(uint8_t *src, uint32_t src_len, int *freqs)
 /**
  * @brief Write huffman header (= dictionnary).
  * 
- * @param bs_out 	output bit stream
  * @param src_len	input buffer length
  * @param nodes 	huffman nodes
+ * @param header_len	output header length
  */
-static void __write_huffman_header(struct bit_stream *bs_out, uint32_t src_len, struct huff_node **nodes)
+static uint8_t *__write_huffman_header(uint32_t src_len, struct huff_node **nodes, uint32_t *header_len)
 {
+	uint8_t *header, *buf_out;
 	int i, n;
-
-	/* write input buffer length */
-	bit_stream_write_bits(bs_out, (uint32_t) src_len, sizeof(uint32_t) * 8);
 
 	/* count number of nodes */
 	for (i = 0, n = 0; i < NR_CHARACTERS; i++)
 		if (nodes[i])
 			n++;
 
+	/* allocate header */
+	*header_len = sizeof(uint32_t) + sizeof(int) + n * (sizeof(uint8_t) + sizeof(int));
+	header = buf_out = (uint8_t *) xmalloc(*header_len);
+
+	/* write input buffer length */
+	*((uint32_t *) buf_out) = htole32(src_len);
+	buf_out += sizeof(uint32_t);
+
 	/* write number of nodes */
-	bit_stream_write_bits(bs_out, n, sizeof(int) * 8);
+	*((int *) buf_out) = htole32(n);
+	buf_out += sizeof(int);
 
 	/* write dictionnary */
 	for (i = 0; i < NR_CHARACTERS; i++) {
 		if (!nodes[i])
 			continue;
 
-		bit_stream_write_bits(bs_out, nodes[i]->val, sizeof(uint8_t) * 8);
-		bit_stream_write_bits(bs_out, nodes[i]->freq, sizeof(int) * 8);
+		/* write value */
+		*buf_out++ = nodes[i]->val;
+
+		/* write frequency */
+		*((int *) buf_out) = htole32(nodes[i]->freq);
+		buf_out += sizeof(int);
 	}
+
+	return header;
 }
 
 /**
  * @brief Read huffman header (= dictionnary).
  * 
- * @param bs_in 	input bit stream
+ * @param buf_in	input buffer
  * @param freqs 	output characters frequencies
+ * @param dst_len	output destination length
  * 
- * @return destination length
+ * @return length of this header
  */
-static uint32_t __read_huffman_header(struct bit_stream *bs_in, int *freqs)
+static uint32_t __read_huffman_header(uint8_t *buf_in, int *freqs, uint32_t *dst_len)
 {
-	uint32_t dst_len;
+	int i, n, freq;
 	uint8_t val;
-	int i, n;
 
 	/* read destination length */
-	dst_len = bit_stream_read_bits(bs_in, sizeof(uint32_t) * 8);
+	*dst_len = le32toh(*((uint32_t *) buf_in));
+	buf_in += sizeof(uint32_t);
 
 	/* read number of nodes */
-	n = bit_stream_read_bits(bs_in, sizeof(int) * 8);
+	n = le32toh(*((int *) buf_in));
+	buf_in += sizeof(int);
 
 	/* read nodes */
 	for (i = 0; i < n; i++) {
-		val = bit_stream_read_bits(bs_in, sizeof(uint8_t) * 8);
-		freqs[val] = bit_stream_read_bits(bs_in, sizeof(int) * 8);
+		/* read value */
+		val = *buf_in++;
+
+		/* read frequency */
+		freq = le32toh(*((int *) buf_in));
+		buf_in += sizeof(int);
+
+		/* set frequency */
+		freqs[val] = freq;
 	}
 
-	return dst_len;
+	/* return length of this header */
+	return sizeof(uint32_t) + sizeof(int) + n * (sizeof(uint8_t) + sizeof(int));
 }
 
 /**
@@ -369,15 +393,10 @@ static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, uint3
 uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct huff_node *huff_tree, *nodes[NR_CHARACTERS] = { NULL };
+	struct bit_stream bs_out = { 0 };
 	int freqs[NR_CHARACTERS] = { 0 };
 	char code[NR_CHARACTERS];
-	struct bit_stream bs_out;
-
-	/* create output buffer */
-	bs_out.buf = NULL;
-	bs_out.capacity = 0;
-	bs_out.byte_offset = 0;
-	bs_out.bit_offset = 0;
+	uint8_t *dst;
 
 	/* compute characters frequencies */
 	__compute_frequencies(src, src_len, freqs);
@@ -392,7 +411,13 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	__huffman_tree_extract_nodes(huff_tree, nodes);
 
 	/* write huffman header (= write dictionnary with frequencies) */
-	__write_huffman_header(&bs_out, src_len, nodes);
+	dst = __write_huffman_header(src_len, nodes, dst_len);
+
+	/* set output bit stream */
+	bs_out.capacity = *dst_len;
+	bs_out.buf = dst;
+	bs_out.byte_offset = *dst_len;
+	bs_out.bit_offset = 0;
 
 	/* write huffman content (= encode input buffer) */
 	__write_huffman_content(src, src_len, nodes, &bs_out);
@@ -418,24 +443,23 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 uint8_t *huffman_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	int freqs[NR_CHARACTERS] = { 0 };
+	struct bit_stream bs_in = { 0 };
 	struct huff_node *huff_tree;
-	struct bit_stream bs_in;
+	uint32_t header_len;
 	uint8_t *dst;
 
-	/* set input buffer */
-	bs_in.buf = src;
-	bs_in.capacity = src_len;
-	bs_in.byte_offset = 0;
-	bs_in.bit_offset = 0;
-
 	/* read huffman header */
-	*dst_len = __read_huffman_header(&bs_in, freqs);
+	header_len = __read_huffman_header(src, freqs, dst_len);
 
 	/* allocate output buffer */
 	dst = (uint8_t *) xmalloc(*dst_len);
 
 	/* build huffman tree */
 	huff_tree = __huffman_tree(freqs);
+
+	/* set input bit stream */
+	bs_in.capacity = src_len - header_len;
+	bs_in.buf = src + header_len;
 
 	/* decode input buffer */
 	__read_huffman_content(&bs_in, dst, *dst_len, huff_tree);
