@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <endian.h>
 
 #include "deflate.h"
 #include "lz77.h"
@@ -35,7 +36,7 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
-	*((uint32_t *) buf_out) = src_len;
+	*((uint32_t *) buf_out) = htole32(src_len);
 	buf_out += sizeof(uint32_t);
 
 	/* create fix huffman bit stream */
@@ -146,7 +147,7 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	int last_block, type;
 
 	/* read uncompressed length first */
-	*dst_len = *((uint32_t *) src);
+	*dst_len = le32toh(*((uint32_t *) src));
 	src += sizeof(uint32_t);
 	src_len -= sizeof(uint32_t);
 

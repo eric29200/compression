@@ -7,6 +7,7 @@
  * 3 - write final sequence
  */
 #include <string.h>
+#include <endian.h>
 
 #include "lz78.h"
 #include "../utils/trie.h"
@@ -66,11 +67,11 @@ uint8_t *lz78_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
-	*((uint32_t *) buf_out) = src_len;
+	*((uint32_t *) buf_out) = htole32(src_len);
 	buf_out += sizeof(uint32_t);
 
 	/* write temporary dict size */
-	*((int *) buf_out) = id;
+	*((int *) buf_out) = htole32(id);
 	buf_out += sizeof(int);
 
 	/* insert root node */
@@ -95,7 +96,7 @@ uint8_t *lz78_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(int) + sizeof(uint8_t));
 
 		/* write node id and next character */
-		*((int *) buf_out) = node->id;
+		*((int *) buf_out) = htole32(node->id);
 		buf_out += sizeof(int);
 		*buf_out++ = c;
 
@@ -114,7 +115,7 @@ uint8_t *lz78_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	}
 
 	/* write final dict size */
-	*((int *) (dst + sizeof(uint32_t))) = id;
+	*((int *) (dst + sizeof(uint32_t))) = htole32(id);
 
 	/* free dictionnary */
 	trie_free(root);
@@ -141,7 +142,7 @@ uint8_t *lz78_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	uint8_t *dst, *buf_in, *buf_out, c;
 
 	/* read uncompressed length first */
-	*dst_len = *((uint32_t *) src);
+	*dst_len = le32toh(*((uint32_t *) src));
 	src += sizeof(uint32_t);
 	src_len -= sizeof(uint32_t);
 
@@ -152,7 +153,7 @@ uint8_t *lz78_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(*dst_len);
 
 	/* get dict size */
-	dict_size = *((int *) buf_in);
+	dict_size = le32toh(*((int *) buf_in));
 	buf_in += sizeof(int);
 
 	/* create dict */
@@ -166,7 +167,7 @@ uint8_t *lz78_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	/* uncompress */
 	while (buf_in < src + src_len) {
 		/* read node id */
-		parent_id = *((int *) buf_in);
+		parent_id = le32toh(*((int *) buf_in));
 		buf_in += sizeof(int);
 		
 		/* get parent node */

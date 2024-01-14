@@ -4,6 +4,7 @@
  * The dictionnary is init with all single characters (256 entries) : the compressed file stores only node's ids and no characters.
  */
 #include <string.h>
+#include <endian.h>
 
 #include "lzw.h"
 #include "../utils/trie.h"
@@ -64,11 +65,11 @@ uint8_t *lzw_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
-	*((uint32_t *) buf_out) = src_len;
+	*((uint32_t *) buf_out) = htole32(src_len);
 	buf_out += sizeof(uint32_t);
 
 	/* write temporary dict size */
-	*((int *) buf_out) = id;
+	*((int *) buf_out) = htole32(id);
 	buf_out += sizeof(int);
 
 	/* create root tries (one for each single character) */
@@ -97,7 +98,7 @@ uint8_t *lzw_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(int));
 
 		/* write trie id */
-		*((int *) buf_out) = cur_trie->id;
+		*((int *) buf_out) = htole32(cur_trie->id);
 		buf_out += sizeof(int);
 
 		/* remember next character */
@@ -106,11 +107,11 @@ uint8_t *lzw_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 
 	/* write last characters */
 	__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(int));
-	*((int *) buf_out) = cur_trie->id;
+	*((int *) buf_out) = htole32(cur_trie->id);
 	buf_out += sizeof(int);
 
 	/* write final dict size */
-	*((int *) (dst + sizeof(uint32_t))) = id;
+	*((int *) (dst + sizeof(uint32_t))) = htole32(id);
 
 	/* free dictionnary */
 	for (i = 0; i < NR_CHARACTERS; i++)
@@ -138,7 +139,7 @@ uint8_t *lzw_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	uint8_t *dst, *buf_in, *buf_out;
 
 	/* read uncompressed length first */
-	*dst_len = *((uint32_t *) src);
+	*dst_len = le32toh(*((uint32_t *) src));
 	src += sizeof(uint32_t);
 	src_len -= sizeof(uint32_t);
 
@@ -149,7 +150,7 @@ uint8_t *lzw_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(*dst_len);
 
 	/* get dict size */
-	dict_size = *((int *) buf_in);
+	dict_size = le32toh(*((int *) buf_in));
 	buf_in += sizeof(int);
 
 	/* create dictionnary */
@@ -160,7 +161,7 @@ uint8_t *lzw_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	/* uncompress */
 	while (buf_in < src + src_len) {
 		/* read node id */
-		node_id = *((int *) buf_in);
+		node_id = le32toh(*((int *) buf_in));
 		buf_in += sizeof(int);
 
 		/* get node */

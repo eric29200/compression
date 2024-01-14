@@ -2,8 +2,9 @@
  * Run-Length Encoding algorithm = lossless data compression algorithm.
  * Redundant following characters are stored as (nr of occurences ; value).
  */
-#include "rle.h"
+#include <endian.h>
 
+#include "rle.h"
 #include "../utils/mem.h"
 
 #define GROW_SIZE		64
@@ -54,7 +55,7 @@ uint8_t *rle_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length */
-	*((uint32_t *) buf_out) = src_len;
+	*((uint32_t *) buf_out) = htole32(src_len);
 	buf_out += sizeof(uint32_t);
 
 	/* compress */
@@ -100,7 +101,7 @@ uint8_t *rle_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	buf_in = src;
 
 	/* read uncompressed length */
-	*dst_len = *((uint32_t *) buf_in);
+	*dst_len = le32toh(*((uint32_t *) buf_in));
 	buf_in += sizeof(uint32_t);
 
 	/* allocate output buffer */
