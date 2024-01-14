@@ -16,12 +16,12 @@
  * @param dst_capacity 		output buffer capacity
  * @param size_needed		size needed
  */
-static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity, size_t size_needed)
+static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capacity, uint32_t size_needed)
 {
-	size_t pos;
+	uint32_t pos;
 
 	/* no need to grower buffer */
-	if ((size_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
+	if ((uint32_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
 		return;
 
 	/* remember position */
@@ -44,9 +44,9 @@ static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity
  *
  * @return output buffer
  */
-uint8_t *rle_compress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *rle_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
-	size_t i, j, dst_capacity;
+	uint32_t i, j, dst_capacity;
 	uint8_t *dst, *buf_out;
 
 	/* allocate output buffer */
@@ -54,8 +54,8 @@ uint8_t *rle_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length */
-	*((size_t *) buf_out) = src_len;
-	buf_out += sizeof(size_t);
+	*((uint32_t *) buf_out) = src_len;
+	buf_out += sizeof(uint32_t);
 
 	/* compress */
 	for (i = 0; i < src_len;) {
@@ -63,7 +63,7 @@ uint8_t *rle_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 		for (j = 0; j < UINT8_MAX && i + j < src_len && src[i] == src[i + j]; j++);
 
 		/* grow buffer if needed */
-		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(size_t) + sizeof(uint8_t));
+		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(uint32_t) + sizeof(uint8_t));
 
 		/* write number of occurences */
 		*((uint8_t *) buf_out) = (uint8_t) j;
@@ -91,17 +91,17 @@ uint8_t *rle_compress(uint8_t *src, size_t src_len, size_t *dst_len)
  *
  * @return output buffer
  */
-uint8_t *rle_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *rle_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	uint8_t *dst, *buf_in, *buf_out, nr, c;
-	size_t i;
+	uint32_t i;
 
 	/* set input buffer */
 	buf_in = src;
 
 	/* read uncompressed length */
-	*dst_len = *((size_t *) buf_in);
-	buf_in += sizeof(size_t);
+	*dst_len = *((uint32_t *) buf_in);
+	buf_in += sizeof(uint32_t);
 
 	/* allocate output buffer */
 	dst = buf_out = (uint8_t *) xmalloc(*dst_len);

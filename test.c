@@ -24,9 +24,10 @@
  * 
  * @return content of file
  */
-static uint8_t *read_input_file(const char *input_file, size_t *len)
+static uint8_t *read_input_file(const char *input_file, uint32_t *len)
 {
 	uint8_t *buf = NULL;
+	long size;
 	FILE *fp;
 
 	/* open input file */
@@ -38,8 +39,14 @@ static uint8_t *read_input_file(const char *input_file, size_t *len)
 
 	/* get file size */
 	fseek(fp, 0, SEEK_END);
-	*len = ftell(fp);
+	size = *len = ftell(fp);
 	rewind(fp);
+
+	/* check size */
+	if (size > UINT32_MAX) {
+		fprintf(stderr, "Input file \"%s\" is too big\n", input_file);
+		goto err;
+	}
 
 	/* allocate buffer */
 	buf = (uint8_t *) xmalloc(*len);
@@ -69,10 +76,10 @@ err:
  * @param compression_algorithm 	compression algorithm
  * @param compression_name 		compression name
  */
-static void compression_test(uint8_t *src, size_t src_len, int compression_algorithm, const char *compression_name)
+static void compression_test(uint8_t *src, uint32_t src_len, int compression_algorithm, const char *compression_name)
 {
 	double zip_time, unzip_time;
-	size_t zip_len, unzip_len;
+	uint32_t zip_len, unzip_len;
 	uint8_t *zip, *unzip;
 	clock_t start, end;
 
@@ -148,7 +155,7 @@ static void compression_test(uint8_t *src, size_t src_len, int compression_algor
 
 int main(int argc, char **argv)
 {
-	size_t src_len;
+	uint32_t src_len;
 	uint8_t *src;
 
 	/* check arguments */

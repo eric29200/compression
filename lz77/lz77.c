@@ -33,9 +33,9 @@ struct lz77_node {
  * @param len 		buffer length
  * @param node		output node
  */
-static void __lz77_match(uint8_t *window, uint8_t *buf, size_t len, struct lz77_node *node)
+static void __lz77_match(uint8_t *window, uint8_t *buf, uint32_t len, struct lz77_node *node)
 {
-	size_t i, j, max_match_len;
+	uint32_t i, j, max_match_len;
 
 	/* reset lz77 node */
 	node->off = 0;
@@ -73,12 +73,12 @@ static void __lz77_match(uint8_t *window, uint8_t *buf, size_t len, struct lz77_
  * @param dst_capacity 		output buffer capacity
  * @param size_needed		size needed
  */
-static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity, size_t size_needed)
+static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capacity, uint32_t size_needed)
 {
-	size_t pos;
+	uint32_t pos;
 
 	/* no need to grower buffer */
-	if ((size_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
+	if ((uint32_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
 		return;
 
 	/* remember position */
@@ -101,19 +101,19 @@ static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity
  *
  * @return output buffer
  */
-uint8_t *lz77_compress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *lz77_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	uint8_t *dst, *window, *buf_in, *buf_out;
-	size_t window_size, dst_capacity;
+	uint32_t window_size, dst_capacity;
 	struct lz77_node node;
 
 	/* allocate destination buffer */
-	dst_capacity = MAX(src_len, WINDOW_SIZE + sizeof(size_t));
+	dst_capacity = MAX(src_len, WINDOW_SIZE + sizeof(uint32_t));
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
-	*((size_t *) buf_out) = src_len;
-	buf_out += sizeof(size_t);
+	*((uint32_t *) buf_out) = src_len;
+	buf_out += sizeof(uint32_t);
 
 	/* set input buffer and initial window */
 	buf_in = window = src;
@@ -157,16 +157,16 @@ uint8_t *lz77_compress(uint8_t *src, size_t src_len, size_t *dst_len)
  *
  * @return output buffer
  */
-uint8_t *lz77_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *lz77_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	uint8_t *dst, *buf_in, *buf_out;
 	struct lz77_node *node;
-	size_t window_size;
+	uint32_t window_size;
 
 	/* read uncompressed length first */
-	*dst_len = *((size_t *) src);
-	src += sizeof(size_t);
-	src_len -= sizeof(size_t);
+	*dst_len = *((uint32_t *) src);
+	src += sizeof(uint32_t);
+	src_len -= sizeof(uint32_t);
 	
 	/* set input buffer */
 	buf_in = src;

@@ -78,7 +78,7 @@ static struct huff_node *__huffman_tree(int *freqs)
 {
 	struct huff_node *left, *right, *top, *node;
 	struct heap *heap;
-	size_t i;
+	uint32_t i;
 
 	/* create a heap */
 	heap = heap_create(HEAP_MIN, NR_CHARACTERS * 2, __huff_node_compare);
@@ -200,9 +200,9 @@ static void __huffman_tree_free(struct huff_node *root)
  * @param src_len 	input buffer length
  * @param freqs 	output frequencies
  */
-static void __compute_frequencies(uint8_t *src, size_t src_len, int *freqs)
+static void __compute_frequencies(uint8_t *src, uint32_t src_len, int *freqs)
 {
-	size_t i;
+	uint32_t i;
 
 	for (i = 0; i < src_len; i++)
 		freqs[src[i]]++;
@@ -215,7 +215,7 @@ static void __compute_frequencies(uint8_t *src, size_t src_len, int *freqs)
  * @param src_len	input buffer length
  * @param nodes 	huffman nodes
  */
-static void __write_huffman_header(struct bit_stream *bs_out, size_t src_len, struct huff_node **nodes)
+static void __write_huffman_header(struct bit_stream *bs_out, uint32_t src_len, struct huff_node **nodes)
 {
 	int i, n;
 
@@ -248,9 +248,9 @@ static void __write_huffman_header(struct bit_stream *bs_out, size_t src_len, st
  * 
  * @return destination length
  */
-static size_t __read_huffman_header(struct bit_stream *bs_in, int *freqs)
+static uint32_t __read_huffman_header(struct bit_stream *bs_in, int *freqs)
 {
-	size_t dst_len;
+	uint32_t dst_len;
 	uint8_t val;
 	int i, n;
 
@@ -291,10 +291,10 @@ static void __write_huffman_code(struct bit_stream *bs_out, struct huff_node *hu
  * @param nodes 	huffman nodes
  * @param bs_out 	output bit stream
  */
-static void __write_huffman_content(uint8_t *src, size_t src_len, struct huff_node **nodes, struct bit_stream *bs_out)
+static void __write_huffman_content(uint8_t *src, uint32_t src_len, struct huff_node **nodes, struct bit_stream *bs_out)
 {
 	struct huff_node *node;
-	size_t i;
+	uint32_t i;
 
 	for (i = 0; i < src_len; i++) {
 		/* get huffman node */
@@ -342,9 +342,9 @@ static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
  * @param dst_len	output buffer length
  * @param root 		huffman tree
  */
-static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, size_t dst_len, struct huff_node *root)
+static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, uint32_t dst_len, struct huff_node *root)
 {
-	size_t i;
+	uint32_t i;
 	int val;
 
 	/* decode each character */
@@ -366,7 +366,7 @@ static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, size_
  *
  * @return output buffer
  */
-uint8_t *huffman_compress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct huff_node *huff_tree, *nodes[NR_CHARACTERS] = { NULL };
 	int freqs[NR_CHARACTERS] = { 0 };
@@ -415,7 +415,7 @@ uint8_t *huffman_compress(uint8_t *src, size_t src_len, size_t *dst_len)
  *
  * @return output buffer
  */
-uint8_t *huffman_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *huffman_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	int freqs[NR_CHARACTERS] = { 0 };
 	struct huff_node *huff_tree;

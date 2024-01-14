@@ -21,12 +21,12 @@
  * @param dst_capacity 		output buffer capacity
  * @param size_needed		size needed
  */
-static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity, size_t size_needed)
+static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capacity, uint32_t size_needed)
 {
-	size_t pos;
+	uint32_t pos;
 
 	/* no need to grower buffer */
-	if ((size_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
+	if ((uint32_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
 		return;
 
 	/* remember position */
@@ -49,11 +49,11 @@ static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, size_t *dst_capacity
  *
  * @return output buffer
  */
-uint8_t *lzw_compress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *lzw_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct trie *root_tries[NR_CHARACTERS], *cur_trie, *next;
 	uint8_t *dst, *buf_in, *buf_out, c;
-	size_t dst_capacity;
+	uint32_t dst_capacity;
 	int id = 0, i;
 
 	/* set input buffer */
@@ -64,8 +64,8 @@ uint8_t *lzw_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
-	*((size_t *) buf_out) = src_len;
-	buf_out += sizeof(size_t);
+	*((uint32_t *) buf_out) = src_len;
+	buf_out += sizeof(uint32_t);
 
 	/* write temporary dict size */
 	*((int *) buf_out) = id;
@@ -110,7 +110,7 @@ uint8_t *lzw_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	buf_out += sizeof(int);
 
 	/* write final dict size */
-	*((int *) (dst + sizeof(size_t))) = id;
+	*((int *) (dst + sizeof(uint32_t))) = id;
 
 	/* free dictionnary */
 	for (i = 0; i < NR_CHARACTERS; i++)
@@ -131,16 +131,16 @@ uint8_t *lzw_compress(uint8_t *src, size_t src_len, size_t *dst_len)
  *
  * @return output buffer
  */
-uint8_t *lzw_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *lzw_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct trie **dict, *node, *prev_node = NULL, *tmp, *root;
 	int dict_size, id = 0, node_id, i, j;
 	uint8_t *dst, *buf_in, *buf_out;
 
 	/* read uncompressed length first */
-	*dst_len = *((size_t *) src);
-	src += sizeof(size_t);
-	src_len -= sizeof(size_t);
+	*dst_len = *((uint32_t *) src);
+	src += sizeof(uint32_t);
+	src_len -= sizeof(uint32_t);
 
 	/* set input buffer */
 	buf_in = src;

@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define DEFLATE_BLOCK_SIZE	0xFFFF
-
 /**
  * @brief Compress a buffer with deflate algorithm.
  * 
@@ -15,7 +13,7 @@
  *
  * @return output buffer
  */
-uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len);
+uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len);
 
 /**
  * @brief Uncompress a buffer with deflate algorithm.
@@ -26,6 +24,6 @@ uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len);
  *
  * @return output buffer
  */
-uint8_t *deflate_uncompress(uint8_t *src, size_t src_len, size_t *dst_len);
+uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len);
 
 #endif

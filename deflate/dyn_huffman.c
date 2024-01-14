@@ -87,11 +87,11 @@ static void __huffman_tree_free(struct huff_node *root)
  * 
  * @return huffman tree
  */
-static struct huff_node *__huffman_tree(int *freqs, size_t nr_characters)
+static struct huff_node *__huffman_tree(int *freqs, uint32_t nr_characters)
 {
 	struct huff_node *left, *right, *top, *node;
 	struct heap *heap;
-	size_t i;
+	uint32_t i;
 
 	/* create a heap */
 	heap = heap_create(HEAP_MIN, nr_characters * 2, __huff_node_compare);

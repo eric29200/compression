@@ -13,7 +13,7 @@
  *
  * @return output buffer
  */
-uint8_t *lzw_compress(uint8_t *src, size_t src_len, size_t *dst_len);
+uint8_t *lzw_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len);
 
 /**
  * @brief Uncompress a buffer with LZW algorithm.
@@ -24,6 +24,6 @@ uint8_t *lzw_compress(uint8_t *src, size_t src_len, size_t *dst_len);
  *
  * @return output buffer
  */
-uint8_t *lzw_uncompress(uint8_t *src, size_t src_len, size_t *dst_len);
+uint8_t *lzw_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len);
 
 #endif

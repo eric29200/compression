@@ -9,6 +9,8 @@
 #include "../utils/bit_stream.h"
 #include "../utils/mem.h"
 
+#define DEFLATE_BLOCK_SIZE	0xFFFF
+
 #define MAX(x, y)		((x) > (y) ? (x) : (y))
 
 /**
@@ -20,11 +22,11 @@
  *
  * @return output buffer
  */
-uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct bit_stream bs_fix_huff, bs_dyn_huff, bs_no, bs;
+	uint32_t dst_capacity, block_len, pos;
 	struct lz77_node *lz77_nodes = NULL;
-	size_t dst_capacity, block_len, pos;
 	uint8_t *block, *dst, *buf_out;
 	int last_block = 0;
 
@@ -33,8 +35,8 @@ uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len)
 	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
 
 	/* write uncompressed length first */
-	*((size_t *) buf_out) = src_len;
-	buf_out += sizeof(size_t);
+	*((uint32_t *) buf_out) = src_len;
+	buf_out += sizeof(uint32_t);
 
 	/* create fix huffman bit stream */
 	bs_fix_huff.capacity = DEFLATE_BLOCK_SIZE * 4;
@@ -137,16 +139,16 @@ uint8_t *deflate_compress(uint8_t *src, size_t src_len, size_t *dst_len)
  *
  * @return output buffer
  */
-uint8_t *deflate_uncompress(uint8_t *src, size_t src_len, size_t *dst_len)
+uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct bit_stream bs_in;
 	uint8_t *dst, *buf_out;
 	int last_block, type;
 
 	/* read uncompressed length first */
-	*dst_len = *((size_t *) src);
-	src += sizeof(size_t);
-	src_len -= sizeof(size_t);
+	*dst_len = *((uint32_t *) src);
+	src += sizeof(uint32_t);
+	src_len -= sizeof(uint32_t);
 
 	/* allocate output buffer */
 	dst = buf_out = (uint8_t *) xmalloc(*dst_len);
