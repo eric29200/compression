@@ -223,15 +223,15 @@ static void __write_huffman_header(struct bit_stream *bs_out, struct huff_node *
 			n++;
 
 	/* write number of literal nodes */
-	bit_stream_write_bits(bs_out, n, 9, 0);
+	bit_stream_write_bits(bs_out, n, 9);
 
 	/* write literal dictionnary */
 	for (i = 0; i < DYN_HUFF_NR_CODES; i++) {
 		if (!nodes_lit[i])
 			continue;
 
-		bit_stream_write_bits(bs_out, nodes_lit[i]->val, 9, 0);
-		bit_stream_write_bits(bs_out, nodes_lit[i]->freq, 16, 0);
+		bit_stream_write_bits(bs_out, nodes_lit[i]->val, 9);
+		bit_stream_write_bits(bs_out, nodes_lit[i]->freq, 16);
 	}
 
 	/* count number of distance nodes */
@@ -240,15 +240,15 @@ static void __write_huffman_header(struct bit_stream *bs_out, struct huff_node *
 			n++;
 
 	/* write number of distance nodes */
-	bit_stream_write_bits(bs_out, n, 5, 0);
+	bit_stream_write_bits(bs_out, n, 5);
 
 	/* write distance dictionnary */
 	for (i = 0, n = 0; i < DEFLATE_HUFFMAN_NR_DISTANCE_CODES; i++) {
 		if (!nodes_dist[i])
 			continue;
 
-		bit_stream_write_bits(bs_out, nodes_dist[i]->val, 5, 0);
-		bit_stream_write_bits(bs_out, nodes_dist[i]->freq, 16, 0);
+		bit_stream_write_bits(bs_out, nodes_dist[i]->val, 5);
+		bit_stream_write_bits(bs_out, nodes_dist[i]->freq, 16);
 	}
 }
 
@@ -293,7 +293,7 @@ static void __write_huffman_code(struct bit_stream *bs_out, struct huff_node *hu
 	int i;
 
 	for (i = 0; huff_node->huff_code[i]; i++)
-		bit_stream_write_bit(bs_out, huff_node->huff_code[i] - '0', 0);
+		bit_stream_write_bits(bs_out, huff_node->huff_code[i] - '0', 1);
 }
 
 /**
@@ -339,7 +339,7 @@ static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
 	int v;
 
 	for (node = root;;) {
-		v = bit_stream_read_bit(bs_in);
+		v = bit_stream_read_bits(bs_in, 1);
 
 		/* walk through the tree */
 		if (v)
@@ -410,9 +410,9 @@ void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 
 	/* write block header */
 	if (last_block)
-		bit_stream_write_bits(bs_out, 6, 3, 0);
+		bit_stream_write_bits(bs_out, 6, 3);
 	else
-		bit_stream_write_bits(bs_out, 2, 3, 0);
+		bit_stream_write_bits(bs_out, 2, 3);
 
 	/* compute literals and distances frequencies */
 	__compute_frequencies(lz77_nodes, freqs_lit, freqs_dist);

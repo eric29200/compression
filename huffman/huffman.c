@@ -220,7 +220,7 @@ static void __write_huffman_header(struct bit_stream *bs_out, size_t src_len, st
 	int i, n;
 
 	/* write input buffer length */
-	bit_stream_write_bits(bs_out, src_len, sizeof(size_t) * 8, 1);
+	bit_stream_write_bits(bs_out, (uint32_t) src_len, sizeof(uint32_t) * 8);
 
 	/* count number of nodes */
 	for (i = 0, n = 0; i < NR_CHARACTERS; i++)
@@ -228,15 +228,15 @@ static void __write_huffman_header(struct bit_stream *bs_out, size_t src_len, st
 			n++;
 
 	/* write number of nodes */
-	bit_stream_write_bits(bs_out, n, sizeof(int) * 8, 1);
+	bit_stream_write_bits(bs_out, n, sizeof(int) * 8);
 
 	/* write dictionnary */
 	for (i = 0; i < NR_CHARACTERS; i++) {
 		if (!nodes[i])
 			continue;
 
-		bit_stream_write_bits(bs_out, nodes[i]->val, sizeof(uint8_t) * 8, 1);
-		bit_stream_write_bits(bs_out, nodes[i]->freq, sizeof(int) * 8, 1);
+		bit_stream_write_bits(bs_out, nodes[i]->val, sizeof(uint8_t) * 8);
+		bit_stream_write_bits(bs_out, nodes[i]->freq, sizeof(int) * 8);
 	}
 }
 
@@ -255,7 +255,7 @@ static size_t __read_huffman_header(struct bit_stream *bs_in, int *freqs)
 	int i, n;
 
 	/* read destination length */
-	dst_len = bit_stream_read_bits(bs_in, sizeof(size_t) * 8);
+	dst_len = bit_stream_read_bits(bs_in, sizeof(uint32_t) * 8);
 
 	/* read number of nodes */
 	n = bit_stream_read_bits(bs_in, sizeof(int) * 8);
@@ -280,7 +280,7 @@ static void __write_huffman_code(struct bit_stream *bs_out, struct huff_node *hu
 	int i;
 
 	for (i = 0; huff_node->huff_code[i]; i++)
-		bit_stream_write_bit(bs_out, huff_node->huff_code[i] - '0', 1);
+		bit_stream_write_bits(bs_out, huff_node->huff_code[i] - '0', 1);
 }
 
 /**
@@ -319,7 +319,7 @@ static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
 	int v;
 
 	for (node = root;;) {
-		v = bit_stream_read_bit(bs_in);
+		v = bit_stream_read_bits(bs_in, 1);
 
 		/* walk through the tree */
 		if (v)

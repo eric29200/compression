@@ -15,32 +15,13 @@ struct bit_stream {
 };
 
 /**
- * @brief Write a single bit.
- * 
- * @param bs 		bit stream
- * @param value 	value
- * @param grow_bs	grow bit stream if needed ?
- */
-void bit_stream_write_bit(struct bit_stream *bs, int value, int grow_bs);
-
-/**
  * @brief Write bits.
  * 
  * @param bs 		bit stream
  * @param value 	value
  * @param nr_bits	number of bits to write
- * @param grow_bs	grow bit stream if needed ?
  */
-void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits, int grow_bs);
-
-/**
- * @brief Read a single bit.
- * 
- * @param bs 		bit stream
- * 
- * @return value
- */
-int bit_stream_read_bit(struct bit_stream *bs);
+void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits);
 
 /**
  * @brief Read bits.

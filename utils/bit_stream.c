@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "bit_stream.h"
 #include "../utils/mem.h"
@@ -19,52 +20,25 @@ static void __bit_stream_grow(struct bit_stream *bs)
 }
 
 /**
- * @brief Write a single bit.
- * 
- * @param bs 		bit stream
- * @param value 	value
- * @param grow_bs	grow bit stream if needed ?
- */
-void bit_stream_write_bit(struct bit_stream *bs, int value, int grow_bs)
-{
-	/* check need to grow bit stream */
-	if (grow_bs && bs->byte_offset >= bs->capacity)
-		__bit_stream_grow(bs);
-
-	if (bs->bit_offset == 0) {
-		bs->buf[bs->byte_offset] = value << 7;
-		bs->bit_offset = 1;
-		return;
-	}
-
-	bs->buf[bs->byte_offset] |= value << (8 - bs->bit_offset - 1);
-
-	if (bs->bit_offset == 7) {
-		bs->byte_offset++;
-		bs->bit_offset = 0;
-	} else {
-		bs->bit_offset++;
-	}
-}
-
-/**
  * @brief Write bits.
  * 
  * @param bs 		bit stream
  * @param value 	value
  * @param nr_bits	number of bits to write
- * @param grow_bs	grow bit stream if needed ?
  */
-void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits, int grow_bs)
+void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits)
 {
 	int first_byte_bits, last_byte_bits, full_bytes, i;
+
+	/* number of bits must be <= 32 */
+	assert(nr_bits <= 32);
 
 	/* check number of bits */
 	if (nr_bits <= 0)
 		return;
 
 	/* check need to grow bit stream */
-	if (grow_bs && bs->byte_offset + nr_bits / 8 >= bs->capacity)
+	if (bs->byte_offset + nr_bits / 8 >= bs->capacity)
 		__bit_stream_grow(bs);
 
 	/* write first byte */
@@ -102,35 +76,6 @@ void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits, int gr
 
 	/* update byte offset */
 	bs->byte_offset += full_bytes;
-}
-
-/**
- * @brief Read a single bit.
- * 
- * @param bs 		bit stream
- * 
- * @return value
- */
-int bit_stream_read_bit(struct bit_stream *bs)
-{
-	int value;
-
-	if (bs->bit_offset == 0) {
-		value = bs->buf[bs->byte_offset] >> 7;
-		bs->bit_offset = 1;
-		return value;
-	}
-
-	value = (bs->buf[bs->byte_offset] >> (8 - bs->bit_offset - 1)) & 0x1;
-
-	if (bs->bit_offset == 7) {
-		bs->byte_offset++;
-		bs->bit_offset = 0;
-	} else {
-		bs->bit_offset++;
-	}
-
-	return value;
 }
 
 /**

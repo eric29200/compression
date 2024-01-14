@@ -12,14 +12,14 @@
  */
 static void __write_literal(uint8_t literal, struct bit_stream *bs_out)
 {
-	unsigned int value = 0;
+	uint32_t value = 0;
 
 	if (literal < 144) {
 		value = 0x30 + literal;
-		bit_stream_write_bits(bs_out, value, 8, 0);
+		bit_stream_write_bits(bs_out, value, 8);
 	} else {
 		value = 0x190 + literal - 144;
-		bit_stream_write_bits(bs_out, value, 9, 0);
+		bit_stream_write_bits(bs_out, value, 9);
 	}
 }
 
@@ -35,7 +35,7 @@ static void __write_distance(int distance, struct bit_stream *bs_out)
 
 	/* write distance index */
 	i = deflate_fix_huffman_distance_index(distance);
-	bit_stream_write_bits(bs_out, i, 5, 0);
+	bit_stream_write_bits(bs_out, i, 5);
 
 	/* write distance extra bits */
 	deflate_fix_huffman_encode_distance_extra_bits(bs_out, distance);
@@ -55,10 +55,10 @@ static void __write_length(int length, struct bit_stream *bs_out)
 	i = deflate_fix_huffman_length_index(length) + 1;
 	if (i < 24) {
 		value = i;
-		bit_stream_write_bits(bs_out, value, 7, 0);
+		bit_stream_write_bits(bs_out, value, 7);
 	} else {
 		value = 0xC0 + i - 24;
-		bit_stream_write_bits(bs_out, value, 8, 0);
+		bit_stream_write_bits(bs_out, value, 8);
 	}
 
 	/* write length extra bits */
@@ -74,7 +74,7 @@ static void __write_length(int length, struct bit_stream *bs_out)
  */
 static int __read_next_literal(struct bit_stream *bs_in)
 {
-	unsigned int value;
+	uint32_t value;
 
 	/* first read 7 bits */
 	value = bit_stream_read_bits(bs_in, 7);
@@ -115,9 +115,9 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 
 	/* write block header */
 	if (last_block)
-		bit_stream_write_bits(bs_out, 5, 3, 0);
+		bit_stream_write_bits(bs_out, 5, 3);
 	else
-		bit_stream_write_bits(bs_out, 1, 3, 0);
+		bit_stream_write_bits(bs_out, 1, 3);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {
@@ -131,7 +131,7 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 	}
 
 	/* write end of block */
-	bit_stream_write_bits(bs_out, 0, 7, 0);
+	bit_stream_write_bits(bs_out, 0, 7);
 }
 
 /**

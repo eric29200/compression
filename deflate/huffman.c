@@ -109,7 +109,7 @@ void deflate_fix_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, i
 	int i;
 
 	i = deflate_fix_huffman_distance_index(distance);
-	bit_stream_write_bits(bs_out, distance - huff_distances[i], huff_distances_extra_bits[i], 0);
+	bit_stream_write_bits(bs_out, distance - huff_distances[i], huff_distances_extra_bits[i]);
 }
 
 /**
@@ -123,5 +123,5 @@ void deflate_fix_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int
 	int i;
 
 	i = deflate_fix_huffman_length_index(length) + 1;
-	bit_stream_write_bits(bs_out, length - huff_lengths[i - 1], huff_lengths_extra_bits[i - 1], 0);
+	bit_stream_write_bits(bs_out, length - huff_lengths[i - 1], huff_lengths_extra_bits[i - 1]);
 }

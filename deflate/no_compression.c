@@ -16,16 +16,16 @@ void deflate_no_compression_compress(uint8_t *block, int len, int last_block, st
 
 	/* write block header */
 	if (last_block)
-		bit_stream_write_bits(bs_out, 4, 3, 0);
+		bit_stream_write_bits(bs_out, 4, 3);
 	else
-		bit_stream_write_bits(bs_out, 0, 3, 0);
+		bit_stream_write_bits(bs_out, 0, 3);
 
 	/* write length */
-	bit_stream_write_bits(bs_out, len & 0xFFFF, 16, 0);
+	bit_stream_write_bits(bs_out, len & 0xFFFF, 16);
 
 	/* write block */
 	for (i = 0; i < len; i++)
-		bit_stream_write_bits(bs_out, block[i], 8, 0);
+		bit_stream_write_bits(bs_out, block[i], 8);
 }
 
 /**
