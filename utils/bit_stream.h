@@ -9,9 +9,9 @@
  */
 struct bit_stream {
 	uint8_t *		buf;			/* data */
-	size_t 			capacity;		/* capacity */
-	size_t 			byte_offset;		/* current byte position */
-	size_t 			bit_offset;		/* current bit position (in last byte) */
+	uint32_t 		capacity;		/* capacity */
+	uint32_t 		byte_offset;		/* current byte position */
+	uint32_t 		bit_offset;		/* current bit position (in last byte) */
 };
 
 /**
@@ -21,7 +21,7 @@ struct bit_stream {
  * @param value 	value
  * @param nr_bits	number of bits to write
  */
-void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits);
+void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits);
 
 /**
  * @brief Read bits.
@@ -31,7 +31,7 @@ void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits);
  * 
  * @return value
  */
-int bit_stream_read_bits(struct bit_stream *bs, int nr_bits);
+uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits);
 
 /**
  * @brief Flush a bit stream to a buffer.
@@ -42,6 +42,6 @@ int bit_stream_read_bits(struct bit_stream *bs, int nr_bits);
  *
  * @return number of bytes written
  */
-size_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte);
+uint32_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte);
 
 #endif

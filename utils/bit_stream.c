@@ -26,7 +26,7 @@ static void __bit_stream_grow(struct bit_stream *bs)
  * @param value 	value
  * @param nr_bits	number of bits to write
  */
-void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits)
+void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits)
 {
 	int first_byte_bits, last_byte_bits, full_bytes, i;
 
@@ -86,9 +86,10 @@ void bit_stream_write_bits(struct bit_stream *bs, int value, int nr_bits)
  * 
  * @return value
  */
-int bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
+uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
 {
-	int first_byte_bits, last_byte_bits, full_bytes, value, i;
+	int first_byte_bits, last_byte_bits, full_bytes, i;
+	uint32_t value;
 
 	/* check number of bits */
 	if (nr_bits <= 0)
@@ -146,11 +147,11 @@ int bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
  *
  * @return number of bytes written
  */
-size_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte)
+uint32_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte)
 {
 	uint8_t last_bits;
 	int nr_last_bits;
-	size_t n = 0;
+	uint32_t n = 0;
 
 	/* write all bytes */
 	if (bs->byte_offset > 0) {
