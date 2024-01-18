@@ -17,7 +17,6 @@ static void __bit_stream_grow(struct bit_stream *bs)
 {
 	bs->capacity = bs->byte_offset + GROW_SIZE;
 	bs->buf = (uint8_t *) xrealloc(bs->buf, bs->capacity);
-	memset(bs->buf + bs->byte_offset, 0, GROW_SIZE);
 }
 
 /**
@@ -46,6 +45,10 @@ void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits)
 		/* grow bit stream if needed */
 		if (bs->byte_offset >= bs->capacity)
 			__bit_stream_grow(bs);
+
+		/* new byte : clear it */
+		if (bs->bit_offset == 0)
+			bs->buf[bs->byte_offset] = 0;
 
 		/* write next bit */
 		bs->buf[bs->byte_offset] |= ((value >> i) & 0x01) << bs->bit_offset++;
@@ -94,4 +97,19 @@ uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
 	}
 
 	return value;
+}
+
+/**
+ * @brief Flush last byte.
+ * 
+ * @param bs 		bit stream
+ */
+void bit_stream_flush(struct bit_stream *bs)
+{
+	/* empty last byte */
+	if (!bs->bit_offset)
+		return;
+
+	/* fill last byte with zeros */
+	bit_stream_write_bits(bs, 0, 8 - bs->bit_offset);
 }
