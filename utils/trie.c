@@ -71,14 +71,16 @@ struct trie *trie_insert(struct trie *root, uint8_t val, int id)
  */
 void trie_free(struct trie *root)
 {
-	struct trie *child;
+	struct trie *child, *next;
 
 	if (!root)
 		return;
 
 	/* free children */
-	for (child = root->children; child != NULL; child = child->next)
+	for (child = root->children; child != NULL; child = next) {
+		next = child->next;
 		trie_free(child);
+	}
 
 	/* free node */
 	free(root);
