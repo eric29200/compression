@@ -33,15 +33,4 @@ void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits);
  */
 uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits);
 
-/**
- * @brief Flush a bit stream to a buffer.
- * 
- * @param bs 			bit stream
- * @param buf 			output buffer
- * @param flush_last_byte 	flush last byte ?
- *
- * @return number of bytes written
- */
-uint32_t bit_stream_flush(struct bit_stream *bs, uint8_t *buf, int flush_last_byte);
-
 #endif

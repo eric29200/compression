@@ -78,24 +78,20 @@ static int __read_next_literal(struct bit_stream *bs_in)
 
 	/* first read 7 bits */
 	value = bit_stream_read_bits(bs_in, 7);
-
 	if (value <= 23)
 		return value + 256;
 
 	/* no match, read next bit (8 bits) */
 	value <<= 1;
 	value |= bit_stream_read_bits(bs_in, 1);
-
 	if (value >= 48 && value <= 191)
 		return value - 48;
-
 	if (value >= 192 && value <= 199)
 		return value + 88;
 
 	/* still no match, read next bit (9 bits) */
 	value <<= 1;
 	value |= bit_stream_read_bits(bs_in, 1);
-
 	if (value >= 400 && value <= 511)
 		return value - 256;
 
@@ -113,11 +109,9 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 {
 	struct lz77_node *node;
 
-	/* write block header */
-	if (last_block)
-		bit_stream_write_bits(bs_out, 5, 3);
-	else
-		bit_stream_write_bits(bs_out, 1, 3);
+	/* write block header (final block + compression method) */
+	bit_stream_write_bits(bs_out, last_block, 1);
+	bit_stream_write_bits(bs_out, 1, 2);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {

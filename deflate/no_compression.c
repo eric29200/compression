@@ -10,18 +10,16 @@
  * @param last_block 	is this last block ?
  * @param bs_out 	output bit stream
  */
-void deflate_no_compression_compress(uint8_t *block, int len, int last_block, struct bit_stream *bs_out)
+void deflate_no_compression_compress(uint8_t *block, uint32_t len, int last_block, struct bit_stream *bs_out)
 {
-	int i;
+	uint32_t i;
 
-	/* write block header */
-	if (last_block)
-		bit_stream_write_bits(bs_out, 4, 3);
-	else
-		bit_stream_write_bits(bs_out, 0, 3);
+	/* write block header (final block + compression method) */
+	bit_stream_write_bits(bs_out, last_block, 1);
+	bit_stream_write_bits(bs_out, 0, 2);
 
 	/* write length */
-	bit_stream_write_bits(bs_out, len & 0xFFFF, 16);
+	bit_stream_write_bits(bs_out, len, 32);
 
 	/* write block */
 	for (i = 0; i < len; i++)
@@ -38,10 +36,10 @@ void deflate_no_compression_compress(uint8_t *block, int len, int last_block, st
  */
 int deflate_no_compression_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 {
-	int len, i;
+	uint32_t len, i;
 
 	/* read length */
-	len = bit_stream_read_bits(bs_in, 16);
+	len = bit_stream_read_bits(bs_in, 32);
 
 	/* read block */
 	for (i = 0; i < len; i++)
