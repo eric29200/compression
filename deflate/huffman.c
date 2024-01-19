@@ -82,7 +82,7 @@ int deflate_huffman_length_index(int length)
  */
 int deflate_huffman_decode_distance(struct bit_stream *bs_in, int index)
 {
-	return huff_distances[index] + bit_stream_read_bits(bs_in, huff_distances_extra_bits[index]);
+	return huff_distances[index] + bit_stream_read_bits(bs_in, huff_distances_extra_bits[index], BIT_ORDER_MSB);
 }
 
 /**
@@ -95,7 +95,7 @@ int deflate_huffman_decode_distance(struct bit_stream *bs_in, int index)
  */
 int deflate_huffman_decode_length(struct bit_stream *bs_in, int index)
 {
-	return huff_lengths[index] + bit_stream_read_bits(bs_in, huff_lengths_extra_bits[index]);
+	return huff_lengths[index] + bit_stream_read_bits(bs_in, huff_lengths_extra_bits[index], BIT_ORDER_MSB);
 }
 
 /**
@@ -109,7 +109,7 @@ void deflate_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, int d
 	int i;
 
 	i = deflate_huffman_distance_index(distance);
-	bit_stream_write_bits(bs_out, distance - huff_distances[i], huff_distances_extra_bits[i]);
+	bit_stream_write_bits(bs_out, distance - huff_distances[i], huff_distances_extra_bits[i], BIT_ORDER_MSB);
 }
 
 /**
@@ -123,5 +123,5 @@ void deflate_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int len
 	int i;
 
 	i = deflate_huffman_length_index(length) + 1;
-	bit_stream_write_bits(bs_out, length - huff_lengths[i - 1], huff_lengths_extra_bits[i - 1]);
+	bit_stream_write_bits(bs_out, length - huff_lengths[i - 1], huff_lengths_extra_bits[i - 1], BIT_ORDER_MSB);
 }

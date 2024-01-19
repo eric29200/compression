@@ -126,8 +126,8 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	/* uncompress block by block */
 	for (;;) {
 		/* get block header */
-		last_block = bit_stream_read_bits(&bs_in, 1);
-		type = bit_stream_read_bits(&bs_in, 2);
+		last_block = bit_stream_read_bits(&bs_in, 1, BIT_ORDER_MSB);
+		type = bit_stream_read_bits(&bs_in, 2, BIT_ORDER_MSB);
 
 		/* handle compression type */
 		switch (type) {

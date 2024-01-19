@@ -223,15 +223,15 @@ static void __write_huffman_header(struct bit_stream *bs_out, struct huff_node *
 			n++;
 
 	/* write number of literal nodes */
-	bit_stream_write_bits(bs_out, n, 9);
+	bit_stream_write_bits(bs_out, n, 9, BIT_ORDER_MSB);
 
 	/* write literal dictionnary */
 	for (i = 0; i < DYN_HUFF_NR_CODES; i++) {
 		if (!nodes_lit[i])
 			continue;
 
-		bit_stream_write_bits(bs_out, nodes_lit[i]->val, 9);
-		bit_stream_write_bits(bs_out, nodes_lit[i]->freq, 16);
+		bit_stream_write_bits(bs_out, nodes_lit[i]->val, 9, BIT_ORDER_MSB);
+		bit_stream_write_bits(bs_out, nodes_lit[i]->freq, 16, BIT_ORDER_MSB);
 	}
 
 	/* count number of distance nodes */
@@ -240,15 +240,15 @@ static void __write_huffman_header(struct bit_stream *bs_out, struct huff_node *
 			n++;
 
 	/* write number of distance nodes */
-	bit_stream_write_bits(bs_out, n, 5);
+	bit_stream_write_bits(bs_out, n, 5, BIT_ORDER_MSB);
 
 	/* write distance dictionnary */
 	for (i = 0, n = 0; i < DEFLATE_HUFFMAN_NR_DISTANCE_CODES; i++) {
 		if (!nodes_dist[i])
 			continue;
 
-		bit_stream_write_bits(bs_out, nodes_dist[i]->val, 5);
-		bit_stream_write_bits(bs_out, nodes_dist[i]->freq, 16);
+		bit_stream_write_bits(bs_out, nodes_dist[i]->val, 5, BIT_ORDER_MSB);
+		bit_stream_write_bits(bs_out, nodes_dist[i]->freq, 16, BIT_ORDER_MSB);
 	}
 }
 
@@ -264,21 +264,21 @@ static void __read_huffman_header(struct bit_stream *bs_in, int *freqs_lit, int 
 	int i, n, val;
 
 	/* read number of literal nodes */
-	n = bit_stream_read_bits(bs_in, 9);
+	n = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
 
 	/* read literal nodes */
 	for (i = 0; i < n; i++) {
-		val = bit_stream_read_bits(bs_in, 9);
-		freqs_lit[val] = bit_stream_read_bits(bs_in, 16);
+		val = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
+		freqs_lit[val] = bit_stream_read_bits(bs_in, 16, BIT_ORDER_MSB);
 	}
 
 	/* read number of distance nodes */
-	n = bit_stream_read_bits(bs_in, 5);
+	n = bit_stream_read_bits(bs_in, 5, BIT_ORDER_MSB);
 
 	/* read distance nodes */
 	for (i = 0; i < n; i++) {
-		val = bit_stream_read_bits(bs_in, 5);
-		freqs_dist[val] = bit_stream_read_bits(bs_in, 16);
+		val = bit_stream_read_bits(bs_in, 5, BIT_ORDER_MSB);
+		freqs_dist[val] = bit_stream_read_bits(bs_in, 16, BIT_ORDER_MSB);
 	}
 }
 
@@ -293,7 +293,7 @@ static void __write_huffman_code(struct bit_stream *bs_out, struct huff_node *hu
 	int i;
 
 	for (i = 0; huff_node->huff_code[i]; i++)
-		bit_stream_write_bits(bs_out, huff_node->huff_code[i] - '0', 1);
+		bit_stream_write_bits(bs_out, huff_node->huff_code[i] - '0', 1, BIT_ORDER_MSB);
 }
 
 /**
@@ -339,7 +339,7 @@ static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
 	int v;
 
 	for (node = root;;) {
-		v = bit_stream_read_bits(bs_in, 1);
+		v = bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
 
 		/* walk through the tree */
 		if (v)
@@ -409,8 +409,8 @@ void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 	uint8_t code[DYN_HUFF_NR_CODES];
 
 	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1);
-	bit_stream_write_bits(bs_out, 2, 2);
+	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, 2, 2, BIT_ORDER_MSB);
 
 	/* compute literals and distances frequencies */
 	__compute_frequencies(lz77_nodes, freqs_lit, freqs_dist);

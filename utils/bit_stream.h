@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define BIT_ORDER_MSB		1
+#define BIT_ORDER_LSB		2
+
 /**
  * @brief Bit stream.
  */
@@ -20,18 +23,20 @@ struct bit_stream {
  * @param bs 		bit stream
  * @param value 	value
  * @param nr_bits	number of bits to write
+ * @param bit_order	bit order (Least Significant first or Most Significant first)
  */
-void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits);
+void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits, int bit_order);
 
 /**
  * @brief Read bits.
  * 
  * @param bs 		bit stream
  * @param nr_bits 	number of bits to read
+ * @param bit_order	bit order (Least Significant first or Most Significant first)
  * 
  * @return value
  */
-uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits);
+uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits, int bit_order);
 
 /**
  * @brief Flush last byte.

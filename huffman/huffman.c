@@ -304,7 +304,7 @@ static void __write_huffman_code(struct bit_stream *bs_out, struct huff_node *hu
 	int i;
 
 	for (i = 0; huff_node->huff_code[i]; i++)
-		bit_stream_write_bits(bs_out, huff_node->huff_code[i] - '0', 1);
+		bit_stream_write_bits(bs_out, huff_node->huff_code[i] - '0', 1, BIT_ORDER_MSB);
 }
 
 /**
@@ -343,7 +343,7 @@ static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
 	int v;
 
 	for (node = root;;) {
-		v = bit_stream_read_bits(bs_in, 1);
+		v = bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
 
 		/* walk through the tree */
 		if (v)

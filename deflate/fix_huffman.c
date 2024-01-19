@@ -17,9 +17,9 @@ static void __write_literal(uint8_t literal, struct bit_stream *bs_out)
 	 * - characters from 144 to 255 = values from 144 to 255 = codes from 400 to 511 on 9 bits
 	 */
 	if (literal < 144)
-		bit_stream_write_bits(bs_out, 48 + literal, 8);
+		bit_stream_write_bits(bs_out, 48 + literal, 8, BIT_ORDER_MSB);
 	else
-		bit_stream_write_bits(bs_out, 400 + literal - 144, 9);
+		bit_stream_write_bits(bs_out, 400 + literal - 144, 9, BIT_ORDER_MSB);
 }
 
 /**
@@ -34,7 +34,7 @@ static void __write_distance(int distance, struct bit_stream *bs_out)
 
 	/* write distance index */
 	i = deflate_huffman_distance_index(distance);
-	bit_stream_write_bits(bs_out, i, 5);
+	bit_stream_write_bits(bs_out, i, 5, BIT_ORDER_MSB);
 
 	/* write distance extra bits */
 	deflate_huffman_encode_distance_extra_bits(bs_out, distance);
@@ -58,9 +58,9 @@ static void __write_length(int length, struct bit_stream *bs_out)
 	 * - lengths from 24 to 31 = values from 280 to 287 = codes from 192 to 199 on 8 bits
 	 */
 	if (i < 24)
-		bit_stream_write_bits(bs_out, i, 7);
+		bit_stream_write_bits(bs_out, i, 7, BIT_ORDER_MSB);
 	else
-		bit_stream_write_bits(bs_out, 192 + i - 24, 8);
+		bit_stream_write_bits(bs_out, 192 + i - 24, 8, BIT_ORDER_MSB);
 
 	/* write length extra bits */
 	deflate_huffman_encode_length_extra_bits(bs_out, length);
@@ -78,7 +78,7 @@ static int __read_next_literal(struct bit_stream *bs_in)
 	uint32_t value;
 
 	/* first read 7 bits */
-	value = bit_stream_read_bits(bs_in, 7);
+	value = bit_stream_read_bits(bs_in, 7, BIT_ORDER_MSB);
 
 	/*
 	 * - lengths from 00 to 23 = values from 256 to 279 = codes from 000 to 023 on 7 bits
@@ -88,7 +88,7 @@ static int __read_next_literal(struct bit_stream *bs_in)
 
 	/* no match, read next bit (8 bits) */
 	value <<= 1;
-	value |= bit_stream_read_bits(bs_in, 1);
+	value |= bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
 
 	/*
 	 * - characters from 000 to 143 = values from 000 to 143 = codes from 048 to 191 on 8 bits
@@ -104,7 +104,7 @@ static int __read_next_literal(struct bit_stream *bs_in)
 
 	/* still no match, read next bit (9 bits) */
 	value <<= 1;
-	value |= bit_stream_read_bits(bs_in, 1);
+	value |= bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
 
 	/*
 	 * - characters from 144 to 255 = values from 144 to 255 = codes from 400 to 511 on 9 bits
@@ -127,8 +127,8 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 	struct lz77_node *node;
 
 	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1);
-	bit_stream_write_bits(bs_out, 1, 2);
+	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, 1, 2, BIT_ORDER_MSB);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {
@@ -142,7 +142,7 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 	}
 
 	/* write end of block */
-	bit_stream_write_bits(bs_out, 0, 7);
+	bit_stream_write_bits(bs_out, 0, 7, BIT_ORDER_MSB);
 }
 
 /**
@@ -173,7 +173,7 @@ int deflate_fix_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 
 		/* decode lz77 length and distance */
 		length = deflate_huffman_decode_length(bs_in, literal - 257);
-		distance = deflate_huffman_decode_distance(bs_in, bit_stream_read_bits(bs_in, 5));
+		distance = deflate_huffman_decode_distance(bs_in, bit_stream_read_bits(bs_in, 5, BIT_ORDER_MSB));
 
 		/* duplicate pattern */
 		for (i = 0; i < length; i++, n++)
