@@ -109,6 +109,8 @@ uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
  */
 void bit_stream_flush(struct bit_stream *bs)
 {
-	if (bs->bit_offset)
+	if (bs->bit_offset) {
 		bs->byte_offset++;
+		bs->bit_offset = 0;
+	}
 }

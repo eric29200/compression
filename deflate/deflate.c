@@ -25,7 +25,7 @@
 uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct bit_stream bs_fix_huff = { 0 }, bs_dyn_huff = { 0 }, bs_no = { 0 }, *bs;
-	struct lz77_node *lz77_nodes = NULL;
+	struct lz77_node *lz77_nodes;
 	uint32_t dst_capacity;
 	uint8_t *dst, *block;
 	uint16_t block_len;
@@ -65,8 +65,9 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		bs = bs_fix_huff.byte_offset <= bs_dyn_huff.byte_offset ? &bs_fix_huff : &bs_dyn_huff;
 		bs = bs_no.byte_offset <= bs->byte_offset ? &bs_no : bs;
 
-		/* flush last byte */
-		bit_stream_flush(bs);
+		/* last block : flush last byte */
+		if (last_block)
+			bit_stream_flush(bs);
 
 		/* grow output buffer if needed */
 		if (*dst_len + bs->byte_offset > dst_capacity) {
@@ -78,17 +79,10 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		memcpy(dst + *dst_len, bs->buf, bs->byte_offset);
 		*dst_len += bs->byte_offset;
 
-		/* reset fix huffman bit stream */
-		bs_fix_huff.byte_offset = 0;
-		bs_fix_huff.bit_offset = 0;
-
-		/* reset dynamic huffman bit stream */
-		bs_dyn_huff.byte_offset = 0;
-		bs_dyn_huff.bit_offset = 0;
-
-		/* reset no compression bit stream */
-		bs_no.byte_offset = 0;
-		bs_no.bit_offset = 0;
+		/* clear bit streams (remember last byte) */
+		bs_fix_huff.buf[0] = bs_dyn_huff.buf[0] = bs_no.buf[0] = bs->buf[bs->byte_offset];
+		bs_fix_huff.bit_offset = bs_dyn_huff.bit_offset = bs_no.bit_offset = bs->bit_offset;
+		bs_fix_huff.byte_offset = bs_dyn_huff.byte_offset = bs_no.byte_offset = 0;
 
 		/* free lz77 nodes */
 		deflate_lz77_free_nodes(lz77_nodes);
@@ -153,12 +147,6 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		/* last block : exit */
 		if (last_block)
 			break;
-
-		/* go to next byte */
-		if (bs_in.bit_offset) {
-			bs_in.byte_offset++;
-			bs_in.bit_offset = 0;
-		}
 	}
 
 	return dst;
