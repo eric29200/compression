@@ -197,8 +197,8 @@ static void __compute_frequencies(struct lz77_node *lz77_nodes, int *freqs_lit, 
 		if (lz77_node->is_literal) {
 			freqs_lit[lz77_node->data.literal]++;
 		} else {
-			freqs_lit[257 + deflate_fix_huffman_length_index(lz77_node->data.match.length)]++;
-			freqs_dist[deflate_fix_huffman_distance_index(lz77_node->data.match.distance)]++;
+			freqs_lit[257 + deflate_huffman_length_index(lz77_node->data.match.length)]++;
+			freqs_dist[deflate_huffman_distance_index(lz77_node->data.match.distance)]++;
 		}
 	}
 
@@ -315,12 +315,12 @@ static void __write_huffman_content(struct lz77_node *lz77_nodes, struct huff_no
 			__write_huffman_code(bs_out, nodes_lit[lz77_node->data.literal]);
 		} else {
 			/* write length */
-			__write_huffman_code(bs_out, nodes_lit[257 + deflate_fix_huffman_length_index(lz77_node->data.match.length)]);
-			deflate_fix_huffman_encode_length_extra_bits(bs_out, lz77_node->data.match.length);
+			__write_huffman_code(bs_out, nodes_lit[257 + deflate_huffman_length_index(lz77_node->data.match.length)]);
+			deflate_huffman_encode_length_extra_bits(bs_out, lz77_node->data.match.length);
 
 			/* write distance */
-			__write_huffman_code(bs_out, nodes_dist[deflate_fix_huffman_distance_index(lz77_node->data.match.distance)]);
-			deflate_fix_huffman_encode_distance_extra_bits(bs_out, lz77_node->data.match.distance);
+			__write_huffman_code(bs_out, nodes_dist[deflate_huffman_distance_index(lz77_node->data.match.distance)]);
+			deflate_huffman_encode_distance_extra_bits(bs_out, lz77_node->data.match.distance);
 		}
 	}
 }
@@ -382,8 +382,8 @@ static int __read_huffman_content(struct bit_stream *bs_in, uint8_t *buf_out, st
 		}
 
 		/* decode lz77 length and distance */
-		length = deflate_fix_huffman_decode_length(bs_in, literal - 257);
-		distance = deflate_fix_huffman_decode_distance(bs_in, __read_huffman_val(bs_in, root_dist));
+		length = deflate_huffman_decode_length(bs_in, literal - 257);
+		distance = deflate_huffman_decode_distance(bs_in, __read_huffman_val(bs_in, root_dist));
 
 		/* duplicate pattern */
 		for (i = 0; i < length; i++, n++)

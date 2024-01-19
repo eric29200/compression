@@ -11,7 +11,7 @@
  * 
  * @param distance	distance
  */
-int deflate_fix_huffman_distance_index(int distance);
+int deflate_huffman_distance_index(int distance);
 
 /**
  * @brief Get huffman length index.
@@ -20,7 +20,7 @@ int deflate_fix_huffman_distance_index(int distance);
  * 
  * @return index
  */
-int deflate_fix_huffman_length_index(int length);
+int deflate_huffman_length_index(int length);
 
 /**
  * @brief Decode a distance literal.
@@ -30,7 +30,7 @@ int deflate_fix_huffman_length_index(int length);
  * 
  * @return distance
  */
-int deflate_fix_huffman_decode_distance(struct bit_stream *bs_in, int index);
+int deflate_huffman_decode_distance(struct bit_stream *bs_in, int index);
 
 /**
  * @brief Decode a length literal.
@@ -40,7 +40,7 @@ int deflate_fix_huffman_decode_distance(struct bit_stream *bs_in, int index);
  * 
  * @return length
  */
-int deflate_fix_huffman_decode_length(struct bit_stream *bs_in, int index);
+int deflate_huffman_decode_length(struct bit_stream *bs_in, int index);
 
 /**
  * @brief Encode and write distance extra bits.
@@ -48,7 +48,7 @@ int deflate_fix_huffman_decode_length(struct bit_stream *bs_in, int index);
  * @param bs_out	output bit stream
  * @param distance	distance
  */
-void deflate_fix_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, int distance);
+void deflate_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, int distance);
 
 /**
  * @brief Encode and write length extra bits.
@@ -56,7 +56,7 @@ void deflate_fix_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, i
  * @param bs_out	output bit stream
  * @param length	length
  */
-void deflate_fix_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int length);
+void deflate_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int length);
 
 
 #endif

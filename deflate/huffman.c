@@ -43,7 +43,7 @@ static int huff_distances_extra_bits[DEFLATE_HUFFMAN_NR_DISTANCE_CODES] = {
  * 
  * @param distance	distance
  */
-int deflate_fix_huffman_distance_index(int distance)
+int deflate_huffman_distance_index(int distance)
 {
 	int i;
 
@@ -61,7 +61,7 @@ int deflate_fix_huffman_distance_index(int distance)
  * 
  * @return index
  */
-int deflate_fix_huffman_length_index(int length)
+int deflate_huffman_length_index(int length)
 {
 	int i;
 
@@ -80,7 +80,7 @@ int deflate_fix_huffman_length_index(int length)
  * 
  * @return distance
  */
-int deflate_fix_huffman_decode_distance(struct bit_stream *bs_in, int index)
+int deflate_huffman_decode_distance(struct bit_stream *bs_in, int index)
 {
 	return huff_distances[index] + bit_stream_read_bits(bs_in, huff_distances_extra_bits[index]);
 }
@@ -93,7 +93,7 @@ int deflate_fix_huffman_decode_distance(struct bit_stream *bs_in, int index)
  * 
  * @return length
  */
-int deflate_fix_huffman_decode_length(struct bit_stream *bs_in, int index)
+int deflate_huffman_decode_length(struct bit_stream *bs_in, int index)
 {
 	return huff_lengths[index] + bit_stream_read_bits(bs_in, huff_lengths_extra_bits[index]);
 }
@@ -104,11 +104,11 @@ int deflate_fix_huffman_decode_length(struct bit_stream *bs_in, int index)
  * @param bs_out	output bit stream
  * @param distance	distance
  */
-void deflate_fix_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, int distance)
+void deflate_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, int distance)
 {
 	int i;
 
-	i = deflate_fix_huffman_distance_index(distance);
+	i = deflate_huffman_distance_index(distance);
 	bit_stream_write_bits(bs_out, distance - huff_distances[i], huff_distances_extra_bits[i]);
 }
 
@@ -118,10 +118,10 @@ void deflate_fix_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, i
  * @param bs_out	output bit stream
  * @param length	length
  */
-void deflate_fix_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int length)
+void deflate_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int length)
 {
 	int i;
 
-	i = deflate_fix_huffman_length_index(length) + 1;
+	i = deflate_huffman_length_index(length) + 1;
 	bit_stream_write_bits(bs_out, length - huff_lengths[i - 1], huff_lengths_extra_bits[i - 1]);
 }
