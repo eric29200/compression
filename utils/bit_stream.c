@@ -8,6 +8,10 @@
 
 #define GROW_SIZE		64
 
+#define read_bit(bs, i)		(((bs)->buf[(bs)->byte_offset] >> (i)) & 0x01)
+#define set_bit(bs, i)		((bs)->buf[(bs)->byte_offset] |= 0x01 << (i))
+#define clear_bit(bs, i)	((bs)->buf[(bs)->byte_offset] &= ~(0x01 << (i)))
+
 /**
  * @brief Grow a bit stream.
  * 
@@ -46,15 +50,14 @@ void bit_stream_write_bits(struct bit_stream *bs, uint32_t value, int nr_bits)
 		if (bs->byte_offset >= bs->capacity)
 			__bit_stream_grow(bs);
 
-		/* new byte : clear it */
-		if (bs->bit_offset == 0)
-			bs->buf[bs->byte_offset] = 0;
-
 		/* write next bit */
-		bs->buf[bs->byte_offset] |= ((value >> i) & 0x01) << bs->bit_offset++;
+		if ((value >> i) & 0x01)
+			set_bit(bs, bs->bit_offset);
+		else
+			clear_bit(bs, bs->bit_offset);
 
 		/* go to next byte if needed */
-		if (bs->bit_offset == 8) {
+		if (++bs->bit_offset == 8) {
 			bs->byte_offset++;
 			bs->bit_offset = 0;
 		}
@@ -87,10 +90,10 @@ uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
 	/* write each bit (most significant first) */
 	for (i = nr_bits - 1; i >= 0; i--) {
 		/* read next bit */
-		value |= ((bs->buf[bs->byte_offset] >> bs->bit_offset++) & 0x01) << i;
+		value |= read_bit(bs, bs->bit_offset) << i;
 
 		/* go to next byte if needed */
-		if (bs->bit_offset == 8) {
+		if (++bs->bit_offset == 8) {
 			bs->byte_offset++;
 			bs->bit_offset = 0;
 		}
@@ -106,10 +109,6 @@ uint32_t bit_stream_read_bits(struct bit_stream *bs, int nr_bits)
  */
 void bit_stream_flush(struct bit_stream *bs)
 {
-	/* empty last byte */
-	if (!bs->bit_offset)
-		return;
-
-	/* fill last byte with zeros */
-	bit_stream_write_bits(bs, 0, 8 - bs->bit_offset);
+	if (bs->bit_offset)
+		bs->byte_offset++;
 }
