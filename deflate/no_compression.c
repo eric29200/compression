@@ -13,8 +13,14 @@ void deflate_no_compression_compress(uint8_t *block, uint16_t len, struct bit_st
 {
 	uint32_t i;
 
+	/* go to next byte */
+	bit_stream_flush(bs_out);
+
 	/* write length */
 	bit_stream_write_bits(bs_out, len, 16, BIT_ORDER_LSB);
+
+	/* write one's complement of length */
+	bit_stream_write_bits(bs_out, ~len, 16, BIT_ORDER_LSB);
 
 	/* write block */
 	for (i = 0; i < len; i++)
@@ -33,8 +39,14 @@ int deflate_no_compression_uncompress(struct bit_stream *bs_in, uint8_t *buf_out
 {
 	uint16_t len, i;
 
+	/* go to next byte */
+	bit_stream_flush(bs_in);
+
 	/* read length */
 	len = bit_stream_read_bits(bs_in, 16, BIT_ORDER_LSB);
+
+	/* ignore one's complement of length */
+	bit_stream_read_bits(bs_in, 16, BIT_ORDER_LSB);
 
 	/* read block */
 	for (i = 0; i < len; i++)

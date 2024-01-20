@@ -94,6 +94,8 @@ static struct bit_stream *__compress_block(uint8_t *block, uint16_t block_len, i
 	else
 		bs = bs_no;
 
+	bs = bs_no;
+
 	/* last block : flush last byte */
 	if (last_block)
 		bit_stream_flush(bs);
