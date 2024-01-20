@@ -45,7 +45,7 @@ uint32_t __crc32(const uint8_t *buf, uint32_t length, uint32_t crc)
 		crc = crc32_tab[crc & 0x0F] ^ (crc >> 4);
 	}
 
-	return crc;
+	return ~crc;
 }
 
 /**
