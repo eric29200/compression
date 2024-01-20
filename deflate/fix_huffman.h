@@ -10,10 +10,9 @@
  * @brief Compress lz77 nodes with fix huffman alphabet.
  * 
  * @param lz77_nodes 	LZ77 nodes
- * @param last_block 	is this last block ?
  * @param bs_out 	output bit stream
  */
-void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, struct bit_stream *bs_out);
+void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out);
 
 /**
  * @brief Uncompress LZ77 nodes with fix huffman codes.

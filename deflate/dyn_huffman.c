@@ -397,20 +397,15 @@ static int __read_huffman_content(struct bit_stream *bs_in, uint8_t *buf_out, st
  * @brief Compress LZ77 nodes with dynamic huffman alphabet.
  * 
  * @param lz77_nodes 		LZ77 nodes
- * @param last_block 		is this last block ?
  * @param bs_out 		output bit stream
  */
-void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, int last_block, struct bit_stream *bs_out)
+void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out)
 {
 	int freqs_lit[DYN_HUFF_NR_CODES] = { 0 }, freqs_dist[DEFLATE_HUFFMAN_NR_DISTANCE_CODES] = { 0 };
 	struct huff_node *huff_nodes_dist[DEFLATE_HUFFMAN_NR_DISTANCE_CODES] = { NULL };
 	struct huff_node *huff_nodes_lit[DYN_HUFF_NR_CODES] = { NULL };
 	struct huff_node *huff_tree_lit, *huff_tree_dist;
 	uint8_t code[DYN_HUFF_NR_CODES];
-
-	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_LSB);
-	bit_stream_write_bits(bs_out, 2, 2, BIT_ORDER_LSB);
 
 	/* compute literals and distances frequencies */
 	__compute_frequencies(lz77_nodes, freqs_lit, freqs_dist);

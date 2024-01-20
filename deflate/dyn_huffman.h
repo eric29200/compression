@@ -10,10 +10,9 @@
  * @brief Compress LZ77 nodes with dynamic huffman alphabet.
  * 
  * @param lz77_nodes 		LZ77 nodes
- * @param last_block 		is this last block ?
  * @param bs_out 		output bit stream
  */
-void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, int last_block, struct bit_stream *bs_out);
+void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out);
 
 /**
  * @brief Uncompress LZ77 nodes with dynamic huffman alphabet.

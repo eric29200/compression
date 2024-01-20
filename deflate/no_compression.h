@@ -10,10 +10,9 @@
  * 
  * @param block 	input block
  * @param len 		block length
- * @param last_block 	is this last block ?
  * @param bs_out 	output bit stream
  */
-void deflate_no_compression_compress(uint8_t *block, uint16_t len, int last_block, struct bit_stream *bs_out);
+void deflate_no_compression_compress(uint8_t *block, uint16_t len, struct bit_stream *bs_out);
 
 /**
  * @brief Uncompress a block.

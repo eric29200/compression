@@ -119,16 +119,11 @@ static int __read_next_literal(struct bit_stream *bs_in)
  * @brief Compress lz77 nodes with fix huffman alphabet.
  * 
  * @param lz77_nodes 	LZ77 nodes
- * @param last_block 	is this last block ?
  * @param bs_out 	output bit stream
  */
-void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, struct bit_stream *bs_out)
+void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out)
 {
 	struct lz77_node *node;
-
-	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_LSB);
-	bit_stream_write_bits(bs_out, 1, 2, BIT_ORDER_LSB);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {

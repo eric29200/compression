@@ -11,7 +11,10 @@
 #include "../utils/bit_stream.h"
 #include "../utils/mem.h"
 
-#define DEFLATE_BLOCK_SIZE	0xFFFF
+#define DEFLATE_BLOCK_SIZE			0xFFFF
+#define DEFLATE_COMPRESSION_NO			0
+#define DEFLATE_COMPRESSION_FIX_HUFFMAN		1
+#define DEFLATE_COMPRESSION_DYN_HUFFMAN		2
 
 /**
  * @brief CRC table.
@@ -46,6 +49,59 @@ uint32_t __crc32(const uint8_t *buf, uint32_t length, uint32_t crc)
 }
 
 /**
+ * @brief Compress a block.
+ * 
+ * @param block 		input block
+ * @param block_len 		input block length
+ * @param last_block 		last block ?
+ * @param bs_fix_huff 		fix huffman bit stream
+ * @param bs_dyn_huff 		dynamic huffman bit stream
+ * @param bs_no 		no compression bit stream
+ * 
+ * @return output bit stream (with best compression)
+ */
+static struct bit_stream *__compress_block(uint8_t *block, uint16_t block_len, int last_block,
+					   struct bit_stream *bs_fix_huff,
+					   struct bit_stream *bs_dyn_huff,
+					   struct bit_stream *bs_no)
+{
+	struct lz77_node *lz77_nodes;
+	struct bit_stream *bs;
+
+	/* lz77 compression */
+	lz77_nodes = deflate_lz77_compress(block, block_len);
+
+	/* fix huffman compression */
+	bit_stream_write_bits(bs_fix_huff, last_block, 1, BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_fix_huff, DEFLATE_COMPRESSION_FIX_HUFFMAN, 2, BIT_ORDER_LSB);
+	deflate_fix_huffman_compress(lz77_nodes, bs_fix_huff);
+
+	/* dynamic huffman compression */
+	bit_stream_write_bits(bs_dyn_huff, last_block, 1, BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_dyn_huff, DEFLATE_COMPRESSION_DYN_HUFFMAN, 2, BIT_ORDER_LSB);
+	deflate_dyn_huffman_compress(lz77_nodes, bs_dyn_huff);
+
+	/* no compression */
+	bit_stream_write_bits(bs_no, last_block, 1, BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_no, DEFLATE_COMPRESSION_NO, 2, BIT_ORDER_MSB);
+	deflate_no_compression_compress(block, block_len, bs_no);
+
+	/* choose best compression method */
+	if (bs_fix_huff->byte_offset <= bs_dyn_huff->byte_offset && bs_fix_huff->byte_offset <= bs_no->byte_offset)
+		bs = bs_fix_huff;
+	else if (bs_dyn_huff->byte_offset <= bs_no->byte_offset)
+		bs = bs_dyn_huff;
+	else
+		bs = bs_no;
+
+	/* last block : flush last byte */
+	if (last_block)
+		bit_stream_flush(bs);
+
+	return bs;
+}
+
+/**
  * @brief Compress a buffer with deflate algorithm.
  * 
  * @param src 		input buffer
@@ -57,7 +113,6 @@ uint32_t __crc32(const uint8_t *buf, uint32_t length, uint32_t crc)
 uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct bit_stream bs_fix_huff = { 0 }, bs_dyn_huff = { 0 }, bs_no = { 0 }, *bs;
-	struct lz77_node *lz77_nodes;
 	uint32_t dst_capacity;
 	uint8_t *dst, *block;
 	uint16_t block_len;
@@ -76,25 +131,8 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 			last_block = 1;
 		}
 
-		/* lz77 compression */
-		lz77_nodes = deflate_lz77_compress(block, block_len);
-
-		/* fix huffman compression */
-		deflate_fix_huffman_compress(lz77_nodes, last_block, &bs_fix_huff);
-
-		/* dynamic huffman compression */
-		deflate_dyn_huffman_compress(lz77_nodes, last_block, &bs_dyn_huff);
-
-		/* no compression */
-		deflate_no_compression_compress(block, block_len, last_block, &bs_no);
-
-		/* choose best compression method */
-		bs = bs_fix_huff.byte_offset <= bs_dyn_huff.byte_offset ? &bs_fix_huff : &bs_dyn_huff;
-		bs = bs_no.byte_offset <= bs->byte_offset ? &bs_no : bs;
-
-		/* last block : flush last byte */
-		if (last_block)
-			bit_stream_flush(bs);
+		/* compress block */
+		bs = __compress_block(block, block_len, last_block, &bs_fix_huff, &bs_dyn_huff, &bs_no);
 
 		/* grow output buffer if needed */
 		if (*dst_len + bs->byte_offset > dst_capacity) {
@@ -110,9 +148,6 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		bs_fix_huff.buf[0] = bs_dyn_huff.buf[0] = bs_no.buf[0] = bs->buf[bs->byte_offset];
 		bs_fix_huff.bit_offset = bs_dyn_huff.bit_offset = bs_no.bit_offset = bs->bit_offset;
 		bs_fix_huff.byte_offset = bs_dyn_huff.byte_offset = bs_no.byte_offset = 0;
-
-		/* free lz77 nodes */
-		deflate_lz77_free_nodes(lz77_nodes);
 	}
 
 	/* grow output buffer if needed (for crc and source length) */
@@ -176,13 +211,13 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 
 		/* handle compression type */
 		switch (type) {
-			case 0:
+			case DEFLATE_COMPRESSION_NO:
 				buf_out += deflate_no_compression_uncompress(&bs_in, buf_out);
 				break;
-			case 1:
+			case DEFLATE_COMPRESSION_FIX_HUFFMAN:
 				buf_out += deflate_fix_huffman_uncompress(&bs_in, buf_out);
 				break;
-			case 2:
+			case DEFLATE_COMPRESSION_DYN_HUFFMAN:
 				buf_out += deflate_dyn_huffman_uncompress(&bs_in, buf_out);
 				break;
 			default:
