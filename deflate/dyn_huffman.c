@@ -409,8 +409,8 @@ void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 	uint8_t code[DYN_HUFF_NR_CODES];
 
 	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_MSB);
-	bit_stream_write_bits(bs_out, 2, 2, BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_out, 2, 2, BIT_ORDER_LSB);
 
 	/* compute literals and distances frequencies */
 	__compute_frequencies(lz77_nodes, freqs_lit, freqs_dist);

@@ -13,6 +13,26 @@
 
 #define DEFLATE_BLOCK_SIZE	0xFFFF
 
+static const uint32_t crc32_tab[16] = {
+	0x00000000, 0x1DB71064, 0x3B6E20C8, 0x26D930AC, 0x76DC4190,
+	0x6B6B51F4, 0x4DB26158, 0x5005713C, 0xEDB88320, 0xF00F9344,
+	0xD6D6A3E8, 0xCB61B38C, 0x9B64C2B0, 0x86D3D2D4, 0xA00AE278,
+	0xBDBDF21C
+};
+
+uint32_t __crc32(const uint8_t *buf, uint32_t length, uint32_t crc)
+{
+	uint32_t i;
+
+	for (i = 0; i < length; i++) {
+		crc ^= buf[i];
+		crc = crc32_tab[crc & 0x0F] ^ (crc >> 4);
+		crc = crc32_tab[crc & 0x0F] ^ (crc >> 4);
+	}
+
+	return crc;
+}
+
 /**
  * @brief Compress a buffer with deflate algorithm.
  * 
@@ -32,13 +52,8 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	int last_block = 0;
 
 	/* allocate output buffer */
-	dst_capacity = sizeof(uint32_t);
-	dst = (uint8_t *) xmalloc(dst_capacity);
-	*dst_len = 0;
-
-	/* write uncompressed length first */
-	*((uint32_t *) dst + *dst_len) = htole32(src_len);
-	*dst_len += sizeof(uint32_t);
+	dst_capacity = *dst_len = 0;
+	dst = NULL;
 
 	/* compress block by block */
 	for (block = src; block < src + src_len; block += block_len) {
@@ -88,6 +103,20 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		deflate_lz77_free_nodes(lz77_nodes);
 	}
 
+	/* grow output buffer if needed (for crc and source length) */
+	if (*dst_len + sizeof(uint32_t) * 2 > dst_capacity) {
+		dst_capacity = *dst_len + sizeof(uint32_t) * 2;
+		dst = xrealloc(dst, dst_capacity);
+	}
+
+	/* write crc */
+	*((uint32_t *) (dst + *dst_len)) = htole32(__crc32(src, src_len, ~0));
+	*dst_len += sizeof(uint32_t);
+
+	/* write uncompressed length */
+	*((uint32_t *) (dst + *dst_len)) = htole32(src_len);
+	*dst_len += sizeof(uint32_t);
+
 	/* free bit streams */
 	xfree(bs_fix_huff.buf);
 	xfree(bs_dyn_huff.buf);
@@ -110,10 +139,14 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	struct bit_stream bs_in = { 0 };
 	uint8_t *dst, *buf_out;
 	int last_block, type;
+	uint32_t crc;
 
 	/* read uncompressed length first */
-	*dst_len = le32toh(*((uint32_t *) src));
-	src += sizeof(uint32_t);
+	*dst_len = le32toh(*((uint32_t *) (src + src_len - sizeof(uint32_t))));
+	src_len -= sizeof(uint32_t);
+
+	/* then read crc */
+	crc = le32toh(*((uint32_t *) (src + src_len - sizeof(uint32_t))));
 	src_len -= sizeof(uint32_t);
 
 	/* allocate output buffer */
@@ -126,8 +159,8 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	/* uncompress block by block */
 	for (;;) {
 		/* get block header */
-		last_block = bit_stream_read_bits(&bs_in, 1, BIT_ORDER_MSB);
-		type = bit_stream_read_bits(&bs_in, 2, BIT_ORDER_MSB);
+		last_block = bit_stream_read_bits(&bs_in, 1, BIT_ORDER_LSB);
+		type = bit_stream_read_bits(&bs_in, 2, BIT_ORDER_LSB);
 
 		/* handle compression type */
 		switch (type) {
@@ -148,6 +181,10 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		if (last_block)
 			break;
 	}
+
+	/* check crc */
+	if (__crc32(dst, *dst_len, ~0) != crc)
+		goto err;
 
 	return dst;
 err:

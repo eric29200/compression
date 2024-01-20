@@ -15,15 +15,15 @@ void deflate_no_compression_compress(uint8_t *block, uint16_t len, int last_bloc
 	uint32_t i;
 
 	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_LSB);
 	bit_stream_write_bits(bs_out, 0, 2, BIT_ORDER_MSB);
 
 	/* write length */
-	bit_stream_write_bits(bs_out, len, 16, BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, len, 16, BIT_ORDER_LSB);
 
 	/* write block */
 	for (i = 0; i < len; i++)
-		bit_stream_write_bits(bs_out, block[i], 8, BIT_ORDER_MSB);
+		bit_stream_write_bits(bs_out, block[i], 8, BIT_ORDER_LSB);
 }
 
 /**
@@ -39,11 +39,11 @@ int deflate_no_compression_uncompress(struct bit_stream *bs_in, uint8_t *buf_out
 	uint16_t len, i;
 
 	/* read length */
-	len = bit_stream_read_bits(bs_in, 16, BIT_ORDER_MSB);
+	len = bit_stream_read_bits(bs_in, 16, BIT_ORDER_LSB);
 
 	/* read block */
 	for (i = 0; i < len; i++)
-		buf_out[i] = bit_stream_read_bits(bs_in, 8, BIT_ORDER_MSB);
+		buf_out[i] = bit_stream_read_bits(bs_in, 8, BIT_ORDER_LSB);
 
 	return len;
 }

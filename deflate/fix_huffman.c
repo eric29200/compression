@@ -127,8 +127,8 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, int last_block, 
 	struct lz77_node *node;
 
 	/* write block header (final block + compression method) */
-	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_MSB);
-	bit_stream_write_bits(bs_out, 1, 2, BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, last_block, 1, BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_out, 1, 2, BIT_ORDER_LSB);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {
