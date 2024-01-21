@@ -162,11 +162,11 @@ int main(int argc, char **argv)
 		return 1;
 
 	/* compression test */
-	//compression_test(src, src_len, COMPRESSION_RLE, "RLE");
-	//compression_test(src, src_len, COMPRESSION_LZ77, "LZ77");
-	//compression_test(src, src_len, COMPRESSION_LZ78, "LZ78");
+	compression_test(src, src_len, COMPRESSION_RLE, "RLE");
+	compression_test(src, src_len, COMPRESSION_LZ77, "LZ77");
+	compression_test(src, src_len, COMPRESSION_LZ78, "LZ78");
 	compression_test(src, src_len, COMPRESSION_HUFFMAN, "HUFFMAN");
-	//compression_test(src, src_len, COMPRESSION_DEFLATE, "DEFLATE");
+	compression_test(src, src_len, COMPRESSION_DEFLATE, "DEFLATE");
 
 	return 0;
 }
