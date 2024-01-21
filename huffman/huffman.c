@@ -23,18 +23,6 @@
 
 
 /**
- * @brief Huffman node.
- */
-struct huff_node {
-	uint32_t		val;				/* value */
-	uint32_t 		freq;				/* frequency */
-	uint32_t		huff_code;			/* hufman code */
-	uint32_t		nr_bits;			/* number of bits in huffman code */
-	struct huff_node *	left;				/* left node */
-	struct huff_node *	right;				/* right node */
-};
-
-/**
  * @brief Compare 2 huffman nodes.
  * 
  * @param h1 		first node
@@ -71,25 +59,50 @@ static struct huff_node *__huff_node_create(uint32_t val, uint32_t freq)
 }
 
 /**
+ * @brief Build huffman codes.
+ * 
+ * @param root 		huffman tree
+ * @param code 		huffman code
+ * @param nr_bits	number of bits
+ */
+static void __huffman_tree_build_codes(struct huff_node *root, uint32_t code, uint32_t nr_bits)
+{
+	/* build huffman code on left (encode with a zero) */
+	if (root->left)
+		__huffman_tree_build_codes(root->left, code << 1, nr_bits + 1);
+
+	/* build huffman code on right (encode with a one) */
+	if (root->right)
+		__huffman_tree_build_codes(root->right, (code << 1) | 0x01, nr_bits + 1);
+
+	/* leaf : create code */
+	if (__huffman_leaf(root)) {
+		root->huff_code = code;
+		root->nr_bits = nr_bits;
+	}
+}
+
+/**
  * @brief Create a huffman tree.
  * 
- * @param freqs 	characters frequencies
+ * @param freqs 		characters frequencies
+ * @param nr_characters		number of characters in the alphabet
  * 
  * @return huffman tree
  */
-static struct huff_node *__huffman_tree(uint32_t *freqs)
+struct huff_node *huffman_tree_create(uint32_t *freqs, uint32_t nr_characters)
 {
 	struct huff_node *left, *right, *top, *node;
 	struct heap *heap;
 	uint32_t i;
 
 	/* create a heap */
-	heap = heap_create(HEAP_MIN, NR_CHARACTERS * 2, __huff_node_compare);
+	heap = heap_create(HEAP_MIN, nr_characters * 2, __huff_node_compare);
 	if (!heap)
 		return NULL;
 
 	/* build min heap */
-	for (i = 0; i < NR_CHARACTERS; i++) {
+	for (i = 0; i < nr_characters; i++) {
 		if (!freqs[i])
 			continue;
 
@@ -119,35 +132,14 @@ static struct huff_node *__huffman_tree(uint32_t *freqs)
 		heap_insert(heap, top);
 	}
 
-	/* return min node */
+	/* get root */
 	node = heap_min(heap);
+
+	/* build huffman codes */
+	__huffman_tree_build_codes(node, 0, 0);
 out:
 	heap_free(heap);
 	return node;
-}
-
-/**
- * @brief Build huffman codes.
- * 
- * @param root 		huffman tree
- * @param code 		huffman code
- * @param nr_bits	number of bits
- */
-static void __huffman_tree_build_codes(struct huff_node *root, uint32_t code, uint32_t nr_bits)
-{
-	/* build huffman code on left (encode with a zero) */
-	if (root->left)
-		__huffman_tree_build_codes(root->left, code << 1, nr_bits + 1);
-
-	/* build huffman code on right (encode with a one) */
-	if (root->right)
-		__huffman_tree_build_codes(root->right, (code << 1) | 0x01, nr_bits + 1);
-
-	/* leaf : create code */
-	if (__huffman_leaf(root)) {
-		root->huff_code = code;
-		root->nr_bits = nr_bits;
-	}
 }
 
 /**
@@ -388,10 +380,7 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	__compute_frequencies(src, src_len, freqs);
 
 	/* build huffman tree */
-	huff_tree = __huffman_tree(freqs);
-
-	/* build huffman codes */
-	__huffman_tree_build_codes(huff_tree, 0, 0);
+	huff_tree = huffman_tree_create(freqs, NR_CHARACTERS);
 
 	/* extract huffman nodes */
 	__huffman_tree_extract_nodes(huff_tree, nodes);
@@ -441,7 +430,7 @@ uint8_t *huffman_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = (uint8_t *) xmalloc(*dst_len);
 
 	/* build huffman tree */
-	huff_tree = __huffman_tree(freqs);
+	huff_tree = huffman_tree_create(freqs, NR_CHARACTERS);
 
 	/* set input bit stream */
 	bs_in.capacity = src_len - header_len;
