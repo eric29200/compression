@@ -4,7 +4,6 @@
 #include "rle/rle.h"
 #include "lz77/lz77.h"
 #include "lz78/lz78.h"
-#include "lzw/lzw.h"
 #include "huffman/huffman.h"
 #include "deflate/deflate.h"
 #include "utils/mem.h"
@@ -12,9 +11,8 @@
 #define COMPRESSION_RLE		1
 #define COMPRESSION_LZ77	2
 #define COMPRESSION_LZ78	3
-#define COMPRESSION_LZW		4
-#define COMPRESSION_HUFFMAN	5
-#define COMPRESSION_DEFLATE	6
+#define COMPRESSION_HUFFMAN	4
+#define COMPRESSION_DEFLATE	5
 
 /**
  * @brief Read input file.
@@ -98,9 +96,6 @@ static void compression_test(uint8_t *src, uint32_t src_len, int compression_alg
 		case COMPRESSION_LZ78:
 			zip = lz78_compress(src, src_len, &zip_len);
 			break;
-		case COMPRESSION_LZW:
-			zip = lzw_compress(src, src_len, &zip_len);
-			break;
 		case COMPRESSION_HUFFMAN:
 			zip = huffman_compress(src, src_len, &zip_len);
 			break;
@@ -125,9 +120,6 @@ static void compression_test(uint8_t *src, uint32_t src_len, int compression_alg
 			break;
 		case COMPRESSION_LZ78:
 			unzip = lz78_uncompress(zip, zip_len, &unzip_len);
-			break;
-		case COMPRESSION_LZW:
-			unzip = lzw_uncompress(zip, zip_len, &unzip_len);
 			break;
 		case COMPRESSION_HUFFMAN:
 			unzip = huffman_uncompress(zip, zip_len, &unzip_len);
@@ -173,7 +165,6 @@ int main(int argc, char **argv)
 	compression_test(src, src_len, COMPRESSION_RLE, "RLE");
 	compression_test(src, src_len, COMPRESSION_LZ77, "LZ77");
 	compression_test(src, src_len, COMPRESSION_LZ78, "LZ78");
-	compression_test(src, src_len, COMPRESSION_LZW, "LZW");
 	compression_test(src, src_len, COMPRESSION_HUFFMAN, "HUFFMAN");
 	compression_test(src, src_len, COMPRESSION_DEFLATE, "DEFLATE");
 
