@@ -1,5 +1,5 @@
-#ifndef _HUFFMAN_H_
-#define _HUFFMAN_H_
+#ifndef _DEFLATE_HUFFMAN_H_
+#define _DEFLATE_HUFFMAN_H_
 
 #include "../utils/bit_stream.h"
 

@@ -19,8 +19,6 @@
 
 #define NR_CHARACTERS		256
 
-#define __huffman_leaf(node)	((node)->left == NULL && (node)->right == NULL)
-
 
 /**
  * @brief Compare 2 huffman nodes.
@@ -148,16 +146,16 @@ out:
  * @param root		huffman tree
  * @param nodes		output nodes
  */
-static void __huffman_tree_extract_nodes(struct huff_node *root, struct huff_node **nodes)
+void huffman_tree_extract_nodes(struct huff_node *root, struct huff_node **nodes)
 {
 	if (!root)
 		return;
 
 	if (root->left)
-		__huffman_tree_extract_nodes(root->left, nodes);
+		huffman_tree_extract_nodes(root->left, nodes);
 
 	if (root->right)
-		__huffman_tree_extract_nodes(root->right, nodes);
+		huffman_tree_extract_nodes(root->right, nodes);
 
 	if (__huffman_leaf(root))
 		nodes[root->val] = root;
@@ -169,7 +167,7 @@ static void __huffman_tree_extract_nodes(struct huff_node *root, struct huff_nod
  * 
  * @param root 		root node
  */
-static void __huffman_tree_free(struct huff_node *root)
+void huffman_tree_free(struct huff_node *root)
 {
 	struct huff_node *left, *right;
 
@@ -182,8 +180,8 @@ static void __huffman_tree_free(struct huff_node *root)
 	xfree(root);
 
 	/* free children */
-	__huffman_tree_free(left);
-	__huffman_tree_free(right);
+	huffman_tree_free(left);
+	huffman_tree_free(right);
 }
 
 /**
@@ -383,7 +381,7 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	huff_tree = huffman_tree_create(freqs, NR_CHARACTERS);
 
 	/* extract huffman nodes */
-	__huffman_tree_extract_nodes(huff_tree, nodes);
+	huffman_tree_extract_nodes(huff_tree, nodes);
 
 	/* write huffman header (= write dictionnary with frequencies) */
 	dst = __write_huffman_header(src_len, nodes, dst_len);
@@ -401,7 +399,7 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	*dst_len = bs_out.byte_offset + (bs_out.bit_offset ? 1 : 0);
 
 	/* free huffman tree */
-	__huffman_tree_free(huff_tree);
+	huffman_tree_free(huff_tree);
 
 	return bs_out.buf;
 }
@@ -440,7 +438,7 @@ uint8_t *huffman_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	__read_huffman_content(&bs_in, dst, *dst_len, huff_tree);
 
 	/* free huffman tree */
-	__huffman_tree_free(huff_tree);
+	huffman_tree_free(huff_tree);
 
 	return dst;
 }
