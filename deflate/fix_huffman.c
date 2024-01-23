@@ -3,73 +3,76 @@
 
 #include "fix_huffman.h"
 #include "huffman.h"
+#include "../utils/mem.h"
 
-#define NR_HUFFMAN_CODES	286
+#define NR_LITERALS	286
+#define NR_DISTANCES	30
 
 /**
  * @brief Huffman table.
  */
 struct huffman_table {
-	int			codes[NR_HUFFMAN_CODES];	/* values to huffman codes */
-	int			codes_len[NR_HUFFMAN_CODES];	/* values to huffman codes lengths (= number of bits) */
+	int			len;				/* table length */
+	int 			codes[NR_LITERALS];		/* values to huffman codes */
+	int 			codes_len[NR_LITERALS];		/* values to huffman codes lengths (= number of bits) */
 };
 
 /**
  * @brief Build default huffman tables.
  * 
- * @param lit_table 		literals huffman table
- * @param dist_table 		distances huffman table
+ * @param table_lit 		literals huffman table
+ * @param table_dist 		distances huffman table
  */
-void __build_default_tables(struct huffman_table *lit_table, struct huffman_table *dist_table)
+void __build_default_tables(struct huffman_table *table_lit, struct huffman_table *table_dist)
 {
 	int i, j;
+
+	/* allocate literals table */
+	memset(table_lit, 0, sizeof(struct huffman_table));
+	table_lit->len = NR_LITERALS;
+
+	/* allocate distances table */
+	memset(table_dist, 0, sizeof(struct huffman_table));
+	table_dist->len = NR_DISTANCES;
 
 	/*
 	 * - values from 256 to 279 = codes from 0 to 23 on 7 bits
 	 */
 	for (i = 256, j = 0; i <= 279; i++, j++) {
-		lit_table->codes[i] = j;
-		lit_table->codes_len[i] = 7;
+		table_lit->codes[i] = j;
+		table_lit->codes_len[i] = 7;
 	}
 
 	/*
 	 * - values from 0 to 143 = codes from 48 to 191 on 8 bits
 	 */
 	for (i = 0, j = 48; i <= 143; i++, j++) {
-		lit_table->codes[i] = j;
-		lit_table->codes_len[i] = 8;
+		table_lit->codes[i] = j;
+		table_lit->codes_len[i] = 8;
 	}
 
 	/*
 	 * - values from 280 to 287 = codes from 192 to 199 on 8 bits
 	 */
 	for (i = 280, j = 192; i <= 285; i++, j++) {
-		lit_table->codes[i] = j;
-		lit_table->codes_len[i] = 8;
+		table_lit->codes[i] = j;
+		table_lit->codes_len[i] = 8;
 	}
 
 	/*
 	 * - values from 144 to 255 = codes from 400 to 511 on 9 bits
 	 */
 	for (i = 144, j = 400; i <= 255; i++, j++) {
-		lit_table->codes[i] = j;
-		lit_table->codes_len[i] = 9;
+		table_lit->codes[i] = j;
+		table_lit->codes_len[i] = 9;
 	}
 
 	/*
 	 * - distances from 0 to 29 = codes from 0 to 29 on 5 bits
 	 */
-	for (i = 0; i <= 29; i++) {
-		dist_table->codes[i] = i;
-		dist_table->codes_len[i] = 5;
-	}
-	
-	/*
-	 * - distances >= 30 = not allowed
-	 */
-	for (i = 30; i < NR_HUFFMAN_CODES; i++) {
-		dist_table->codes[i] = -1;
-		dist_table->codes_len[i] = -1;
+	for (i = 0; i < NR_DISTANCES; i++) {
+		table_dist->codes[i] = i;
+		table_dist->codes_len[i] = 5;
 	}
 }
 
@@ -148,7 +151,7 @@ static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *huff_ta
 		code_len++;
 
 		/* try to find code in huffman table */
-		for (i = 0; i < NR_HUFFMAN_CODES; i++)
+		for (i = 0; i < huff_table->len; i++)
 			if (huff_table->codes_len[i] == code_len && huff_table->codes[i] == code)
 				return i;
 
@@ -165,19 +168,19 @@ static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *huff_ta
  */
 void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out)
 {
-	struct huffman_table lit_table, dist_table;
+	struct huffman_table table_lit, table_dist;
 	struct lz77_node *node;
 
 	/* build huffman table */
-	__build_default_tables(&lit_table, &dist_table);
+	__build_default_tables(&table_lit, &table_dist);
 
 	/* compress each lz77 nodes */
 	for (node = lz77_nodes; node != NULL; node = node->next) {
 		if (node->is_literal) {
-			__write_literal(node->data.literal, &lit_table, bs_out);
+			__write_literal(node->data.literal, &table_lit, bs_out);
 		} else {
-			__write_length(node->data.match.length, &lit_table, bs_out);
-			__write_distance(node->data.match.distance, &dist_table, bs_out);
+			__write_length(node->data.match.length, &table_lit, bs_out);
+			__write_distance(node->data.match.distance, &table_dist, bs_out);
 		}
 	}
 
@@ -195,15 +198,15 @@ void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, struct bit_strea
  */
 int deflate_fix_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 {
-	struct huffman_table lit_table, dist_table;
+	struct huffman_table table_lit, table_dist;
 	int literal, length, distance, n, i;
 
 	/* build default tables */
-	__build_default_tables(&lit_table, &dist_table);
+	__build_default_tables(&table_lit, &table_dist);
 
 	for (n = 0;;) {
 		/* read next literal */
-		literal = __read_symbol(bs_in, &lit_table);
+		literal = __read_symbol(bs_in, &table_lit);
 
 		/* end of block */
 		if (literal == 256)
@@ -219,7 +222,7 @@ int deflate_fix_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 		length = deflate_huffman_decode_length(bs_in, literal - 257);
 
 		/* decode lz77 distance */
-		distance = deflate_huffman_decode_distance(bs_in, __read_symbol(bs_in, &dist_table));
+		distance = deflate_huffman_decode_distance(bs_in, __read_symbol(bs_in, &table_dist));
 
 		/* duplicate pattern */
 		for (i = 0; i < length; i++, n++)

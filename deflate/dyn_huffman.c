@@ -4,24 +4,39 @@
 
 #include "dyn_huffman.h"
 #include "huffman.h"
-#include "../huffman/huffman.h"
+#include "../huffman/huffman_tree.h"
 #include "../utils/heap.h"
 #include "../utils/mem.h"
 
-#define DYN_HUFF_NR_CODES		(256 + 1 + DEFLATE_HUFFMAN_NR_LENGTH_CODES)
+#define NR_LITERALS	286
+#define NR_DISTANCES	30
 
 /**
- * @brief Compute literales and distances frequencies.
- * 
- * @param lz77_nodes	LZ77 nodes
- * @param freqs_lit 	output literal frequencies
- * @param freqs_dist	output distance frequencies
+ * @brief Huffman table.
  */
-static void __compute_frequencies(struct lz77_node *lz77_nodes, uint32_t *freqs_lit, uint32_t *freqs_dist)
-{
-	struct lz77_node *lz77_node;
+struct huffman_table {
+	int			len;				/* table length */
+	int 			codes[NR_LITERALS];		/* values to huffman codes */
+	int 			codes_len[NR_LITERALS];		/* values to huffman codes lengths (= number of bits) */
+};
 
-	/* compute frequencies */
+/**
+ * @brief Build dynamic huffman tables.
+ * 
+ * @param lz77_nodes		LZ77 nodes
+ * @param table_lit 		literals huffman table
+ * @param table_dist 		distances huffman table
+ */
+static void __build_tables(struct lz77_node *lz77_nodes, struct huffman_table *table_lit, struct huffman_table *table_dist)
+{
+	struct huff_node *nodes_dist[NR_DISTANCES] = { NULL }, *nodes_lit[NR_LITERALS] = { NULL };
+	uint32_t freqs_lit[NR_LITERALS] = { 0 }, freqs_dist[NR_DISTANCES] = { 0 };
+	struct huff_node *tree_lit, *tree_dist;
+	struct lz77_node *lz77_node;
+	uint32_t val;
+	int i;
+
+	/* compute literals and distances frequencies */
 	for (lz77_node = lz77_nodes; lz77_node != NULL; lz77_node = lz77_node->next) {
 		if (lz77_node->is_literal) {
 			freqs_lit[lz77_node->data.literal]++;
@@ -33,191 +48,182 @@ static void __compute_frequencies(struct lz77_node *lz77_nodes, uint32_t *freqs_
 
 	/* add "end of block" character */
 	freqs_lit[256]++;
-}
 
-/**
- * @brief Write huffman header (= dictionnary).
- * 
- * @param bs_out 	output bit stream
- * @param nodes_lit 	huffman literal nodes
- * @param nodes_dist	huffman distance nodes
- */
-static void __write_huffman_header(struct bit_stream *bs_out, struct huff_node **nodes_lit, struct huff_node **nodes_dist)
-{
-	int i, n;
+	/* build huffman trees */
+	tree_lit = huffman_tree_create(freqs_lit, NR_LITERALS);
+	tree_dist = huffman_tree_create(freqs_dist, NR_DISTANCES);
 
-	/* count number of literal nodes */
-	for (i = 0, n = 0; i < DYN_HUFF_NR_CODES; i++)
-		if (nodes_lit[i])
-			n++;
+	/* extract huffman nodes */
+	huffman_tree_extract_nodes(tree_lit, nodes_lit);
+	huffman_tree_extract_nodes(tree_dist, nodes_dist);
 
-	/* write number of literal nodes */
-	bit_stream_write_bits(bs_out, n, 9, BIT_ORDER_MSB);
-
-	/* write literal dictionnary */
-	for (i = 0; i < DYN_HUFF_NR_CODES; i++) {
-		if (!nodes_lit[i])
-			continue;
-
-		bit_stream_write_bits(bs_out, nodes_lit[i]->val, 9, BIT_ORDER_MSB);
-		bit_stream_write_bits(bs_out, nodes_lit[i]->freq, 16, BIT_ORDER_MSB);
-	}
-
-	/* count number of distance nodes */
-	for (i = 0, n = 0; i < DEFLATE_HUFFMAN_NR_DISTANCE_CODES; i++)
-		if (nodes_dist[i])
-			n++;
-
-	/* write number of distance nodes */
-	bit_stream_write_bits(bs_out, n, 5, BIT_ORDER_MSB);
-
-	/* write distance dictionnary */
-	for (i = 0, n = 0; i < DEFLATE_HUFFMAN_NR_DISTANCE_CODES; i++) {
-		if (!nodes_dist[i])
-			continue;
-
-		bit_stream_write_bits(bs_out, nodes_dist[i]->val, 5, BIT_ORDER_MSB);
-		bit_stream_write_bits(bs_out, nodes_dist[i]->freq, 16, BIT_ORDER_MSB);
-	}
-}
-
-/**
- * @brief Read huffman header (= dictionnary).
- * 
- * @param bs_in 	input bit stream
- * @param freqs_lit 	output literals frequencies
- * @param freqs_dist	output distances frequencies
- */
-static void __read_huffman_header(struct bit_stream *bs_in, uint32_t *freqs_lit, uint32_t *freqs_dist)
-{
-	uint32_t val;
-	int i, n;
-
-	/* read number of literal nodes */
-	n = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
-
-	/* read literal nodes */
-	for (i = 0; i < n; i++) {
-		val = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
-		freqs_lit[val] = bit_stream_read_bits(bs_in, 16, BIT_ORDER_MSB);
-	}
-
-	/* read number of distance nodes */
-	n = bit_stream_read_bits(bs_in, 5, BIT_ORDER_MSB);
-
-	/* read distance nodes */
-	for (i = 0; i < n; i++) {
-		val = bit_stream_read_bits(bs_in, 5, BIT_ORDER_MSB);
-		freqs_dist[val] = bit_stream_read_bits(bs_in, 16, BIT_ORDER_MSB);
-	}
-}
-
-/**
- * @brief Write a huffman code.
- * 
- * @param bs_out 	output bit stream
- * @param huff_node 	huffman node
- */
-static void __write_huffman_code(struct bit_stream *bs_out, struct huff_node *huff_node)
-{
-	bit_stream_write_bits(bs_out, huff_node->huff_code, huff_node->nr_bits, BIT_ORDER_MSB);
-}
-
-/**
- * @brief Encode a block with huffman codes.
- * 
- * @param lz77_nodes	LZ77 nodes
- * @param nodes_lit 	huffman literal nodes
- * @param nodes_dist	huffman distance nodes
- * @param bs_out 	output bit stream
- */
-static void __write_huffman_content(struct lz77_node *lz77_nodes, struct huff_node **nodes_lit, struct huff_node **nodes_dist, struct bit_stream *bs_out)
-{
-	struct lz77_node *lz77_node;
-
-	/* for each lz77 nodes */
-	for (lz77_node = lz77_nodes; lz77_node != NULL; lz77_node = lz77_node->next) {
-		/* get huffman node and write it to output bit stream */
-		if (lz77_node->is_literal) {
-			__write_huffman_code(bs_out, nodes_lit[lz77_node->data.literal]);
-		} else {
-			/* write length */
-			__write_huffman_code(bs_out, nodes_lit[257 + deflate_huffman_length_index(lz77_node->data.match.length)]);
-			deflate_huffman_encode_length_extra_bits(bs_out, lz77_node->data.match.length);
-
-			/* write distance */
-			__write_huffman_code(bs_out, nodes_dist[deflate_huffman_distance_index(lz77_node->data.match.distance)]);
-			deflate_huffman_encode_distance_extra_bits(bs_out, lz77_node->data.match.distance);
+	/* build literals table */
+	memset(table_lit, 0, sizeof(struct huffman_table));
+	table_lit->len = NR_LITERALS;
+	for (i = 0; i < NR_LITERALS; i++) {
+		if (nodes_lit[i]) {
+			val = nodes_lit[i]->val;
+			table_lit->codes[val] = nodes_lit[i]->huff_code;
+			table_lit->codes_len[val] = nodes_lit[i]->nr_bits;
 		}
 	}
+
+	/* build distances table */
+	memset(table_dist, 0, sizeof(struct huffman_table));
+	table_dist->len = NR_DISTANCES;
+	for (i = 0; i < NR_DISTANCES; i++) {
+		if (nodes_dist[i]) {
+			val = nodes_dist[i]->val;
+			table_dist->codes[val] = nodes_dist[i]->huff_code;
+			table_dist->codes_len[val] = nodes_dist[i]->nr_bits;
+		}
+	}
+
+	/* free huffman trees */
+	huffman_tree_free(tree_lit);
+	huffman_tree_free(tree_dist);
 }
 
 /**
- * @brief Decode a huffman node value.
+ * @brief Write huffman tables.
+ * 
+ * @param bs_out 	output bit stream
+ * @param table_lit 	huffman literals table
+ * @param table_dist	huffman distances table
+ */
+static void __write_huffman_tables(struct bit_stream *bs_out, struct huffman_table *table_lit, struct huffman_table *table_dist)
+{
+	int i;
+
+	/* write literals table */
+	for (i = 0; i < table_lit->len; i++) {
+		bit_stream_write_bits(bs_out, table_lit->codes_len[i], 9, BIT_ORDER_MSB);
+		if (table_lit->codes_len[i])
+			bit_stream_write_bits(bs_out, table_lit->codes[i], table_lit->codes_len[i], BIT_ORDER_MSB);
+	}
+
+	/* write distances table */
+	for (i = 0; i < table_dist->len; i++) {
+		bit_stream_write_bits(bs_out, table_dist->codes_len[i], 9, BIT_ORDER_MSB);
+		if (table_dist->codes_len[i])
+			bit_stream_write_bits(bs_out, table_dist->codes[i], table_dist->codes_len[i], BIT_ORDER_MSB);
+	}
+}
+
+/**
+ * @brief Read huffman tables.
  * 
  * @param bs_in 	input bit stream
- * @param root	 	huffman tree
- *
- * @return huffman value
+ * @param table_lit 	huffman literals table
+ * @param table_dist	huffman distances table
  */
-static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
+static void __read_huffman_tables(struct bit_stream *bs_in, struct huffman_table *table_lit, struct huffman_table *table_dist)
 {
-	struct huff_node *node;
-	int bit;
+	int i;
 
-	for (node = root;;) {
-		bit = bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
-
-		/* walk through the tree */
-		if (bit)
-			node = node->right;
+	/* read literals table */
+	table_lit->len = NR_LITERALS;
+	for (i = 0; i < table_lit->len; i++) {
+		table_lit->codes_len[i] = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
+		if (table_lit->codes_len[i])
+			table_lit->codes[i] = bit_stream_read_bits(bs_in, table_lit->codes_len[i], BIT_ORDER_MSB);
 		else
-			node = node->left;
-
-		if (__huffman_leaf(node))
-			return node->val;
+			table_lit->codes[i] = 0;
 	}
 
-	return -1;
+	/* read distances table */
+	table_dist->len = NR_DISTANCES;
+	for (i = 0; i < table_dist->len; i++) {
+		table_dist->codes_len[i] = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
+		if (table_dist->codes_len[i])
+			table_dist->codes[i] = bit_stream_read_bits(bs_in, table_dist->codes_len[i], BIT_ORDER_MSB);
+		else
+			table_dist->codes[i] = 0;
+	}
 }
 
 /**
- * @brief Decode input buffer with huffman codes.
+ * @brief Write a literal.
  * 
- * @param bs_in 	input bit stream
- * @param buf_out	output buffer
- * @param root_lit	huffman literals tree
- * @param root_dist	huffman distances tree
+ * @param literal 		literal
+ * @param huff_table		huffman table
+ * @param bs_out 		output bit stream
  */
-static int __read_huffman_content(struct bit_stream *bs_in, uint8_t *buf_out, struct huff_node *root_lit, struct huff_node *root_dist)
+static void __write_literal(uint8_t literal, struct huffman_table *huff_table, struct bit_stream *bs_out)
 {
-	int literal, length, distance, i, n;
+	bit_stream_write_bits(bs_out, huff_table->codes[literal], huff_table->codes_len[literal], BIT_ORDER_MSB);
+}
 
-	/* decode each character */
-	for (n = 0;;) {
-		/* get next literal */
-		literal = __read_huffman_val(bs_in, root_lit);
+/**
+ * @brief Write a distance.
+ * 
+ * @param distance 		distance
+ * @param huff_table		huffman table
+ * @param bs_out 		output bit stream
+ */
+static void __write_distance(int distance, struct huffman_table *huff_table, struct bit_stream *bs_out)
+{
+	int i;
 
-		/* end of block : exit */
-		if (literal == 256)
-			break;
+	/* get distance index */
+	i = deflate_huffman_distance_index(distance);
+	
+	/* write distance index */
+	bit_stream_write_bits(bs_out, huff_table->codes[i], huff_table->codes_len[i], BIT_ORDER_MSB);
 
-		/* literal */
-		if (literal < 256) {
-			buf_out[n++] = literal;
-			continue;
-		}
+	/* write distance extra bits */
+	deflate_huffman_encode_distance_extra_bits(bs_out, distance);
+}
 
-		/* decode lz77 length and distance */
-		length = deflate_huffman_decode_length(bs_in, literal - 257);
-		distance = deflate_huffman_decode_distance(bs_in, __read_huffman_val(bs_in, root_dist));
+/**
+ * @brief Write a length.
+ * 
+ * @param length 		length
+ * @param huff_table		huffman table
+ * @param bs_out 		output bit stream
+ */
+static void __write_length(int length, struct huffman_table *huff_table, struct bit_stream *bs_out)
+{
+	int i;
 
-		/* duplicate pattern */
-		for (i = 0; i < length; i++, n++)
-			buf_out[n] = buf_out[n - distance];
+	/* get length index */
+	i = deflate_huffman_length_index(length) + 1;
+
+	/* lengths are encoded from 256 in huffman alphabet */
+	i += 256;
+	
+	/* write length index */
+	bit_stream_write_bits(bs_out, huff_table->codes[i], huff_table->codes_len[i], BIT_ORDER_MSB);
+
+	/* write length extra bits */
+	deflate_huffman_encode_length_extra_bits(bs_out, length);
+}
+
+/**
+ * @brief Read a symbol.
+ * 
+ * @param bs_in		input bit stream
+ * @param huff_table	huffman table
+ * 
+ * @return symbol
+ */
+static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *huff_table)
+{
+	int code = 0, code_len = 0, i;
+
+	for (;;) {
+		/* read next bit */
+		code |= bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
+		code_len++;
+
+		/* try to find code in huffman table */
+		for (i = 0; i < huff_table->len; i++)
+			if (huff_table->codes_len[i] == code_len && huff_table->codes[i] == code)
+				return i;
+
+		/* go to next bit */
+		code <<= 1;
 	}
-
-	return n;
 }
 
 /**
@@ -228,34 +234,27 @@ static int __read_huffman_content(struct bit_stream *bs_in, uint8_t *buf_out, st
  */
 void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out)
 {
-	uint32_t freqs_lit[DYN_HUFF_NR_CODES] = { 0 }, freqs_dist[DEFLATE_HUFFMAN_NR_DISTANCE_CODES] = { 0 };
-	struct huff_node *huff_nodes_dist[DEFLATE_HUFFMAN_NR_DISTANCE_CODES] = { NULL };
-	struct huff_node *huff_nodes_lit[DYN_HUFF_NR_CODES] = { NULL };
-	struct huff_node *huff_tree_lit, *huff_tree_dist;
+	struct huffman_table table_lit, table_dist;
+	struct lz77_node *node;
 
-	/* compute literals and distances frequencies */
-	__compute_frequencies(lz77_nodes, freqs_lit, freqs_dist);
+	/* build huffman tables */
+	__build_tables(lz77_nodes, &table_lit, &table_dist);
 
-	/* build huffman trees */
-	huff_tree_lit = huffman_tree_create(freqs_lit, DYN_HUFF_NR_CODES);
-	huff_tree_dist = huffman_tree_create(freqs_dist, DEFLATE_HUFFMAN_NR_DISTANCE_CODES);
+	/* write huffman tables */
+	__write_huffman_tables(bs_out, &table_lit, &table_dist);
 
-	/* extract huffman nodes */
-	huffman_tree_extract_nodes(huff_tree_lit, huff_nodes_lit);
-	huffman_tree_extract_nodes(huff_tree_dist, huff_nodes_dist);
-
-	/* write huffman header (= write dictionnary with frequencies) */
-	__write_huffman_header(bs_out, huff_nodes_lit, huff_nodes_dist);
-
-	/* write huffman content (= encode lz77 data) */
-	__write_huffman_content(lz77_nodes, huff_nodes_lit, huff_nodes_dist, bs_out);
+	/* compress each lz77 nodes */
+	for (node = lz77_nodes; node != NULL; node = node->next) {
+		if (node->is_literal) {
+			__write_literal(node->data.literal, &table_lit, bs_out);
+		} else {
+			__write_length(node->data.match.length, &table_lit, bs_out);
+			__write_distance(node->data.match.distance, &table_dist, bs_out);
+		}
+	}
 
 	/* write end of block */
-	__write_huffman_code(bs_out, huff_nodes_lit[256]);
-
-	/* free huffman trees */
-	huffman_tree_free(huff_tree_lit);
-	huffman_tree_free(huff_tree_dist);
+	bit_stream_write_bits(bs_out, table_lit.codes[256], table_lit.codes_len[256], BIT_ORDER_MSB);
 }
 
 /**
@@ -268,23 +267,36 @@ void deflate_dyn_huffman_compress(struct lz77_node *lz77_nodes, struct bit_strea
  */
 int deflate_dyn_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out)
 {
-	uint32_t freqs_lit[DYN_HUFF_NR_CODES] = { 0 }, freqs_dist[DEFLATE_HUFFMAN_NR_DISTANCE_CODES] = { 0 };
-	struct huff_node *huff_tree_lit, *huff_tree_dist;
-	int len;
+	struct huffman_table table_lit, table_dist;
+	int literal, length, distance, n, i;
 
-	/* read dynamic huffman header (= get frequencies and dictionnary ) */
-	__read_huffman_header(bs_in, freqs_lit, freqs_dist);
+	/* read huffman tables */
+	__read_huffman_tables(bs_in, &table_lit, &table_dist);
 
-	/* build huffman trees */
-	huff_tree_lit = huffman_tree_create(freqs_lit, DYN_HUFF_NR_CODES);
-	huff_tree_dist = huffman_tree_create(freqs_dist, DEFLATE_HUFFMAN_NR_DISTANCE_CODES);
+	for (n = 0;;) {
+		/* read next literal */
+		literal = __read_symbol(bs_in, &table_lit);
 
-	/* read/decode huffman content */
-	len = __read_huffman_content(bs_in, buf_out, huff_tree_lit, huff_tree_dist);
+		/* end of block */
+		if (literal == 256)
+			break;
 
-	/* free huffman trees */
-	huffman_tree_free(huff_tree_lit);
-	huffman_tree_free(huff_tree_dist);
+		/* literal : just add it to output buffer */
+		if (literal < 256) {
+			buf_out[n++] = literal;
+			continue;
+		}
 
-	return len;
+		/* decode lz77 length */
+		length = deflate_huffman_decode_length(bs_in, literal - 257);
+
+		/* decode lz77 distance */
+		distance = deflate_huffman_decode_distance(bs_in, __read_symbol(bs_in, &table_dist));
+
+		/* duplicate pattern */
+		for (i = 0; i < length; i++, n++)
+			buf_out[n] = buf_out[n - distance];
+	}
+
+	return n;
 }
