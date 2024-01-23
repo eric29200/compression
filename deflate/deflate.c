@@ -5,8 +5,7 @@
 
 #include "deflate.h"
 #include "lz77.h"
-#include "dyn_huffman.h"
-#include "fix_huffman.h"
+#include "huffman.h"
 #include "no_compression.h"
 #include "../utils/bit_stream.h"
 #include "../utils/mem.h"
@@ -74,12 +73,12 @@ static struct bit_stream *__compress_block(uint8_t *block, uint16_t block_len, i
 	/* fix huffman compression */
 	bit_stream_write_bits(bs_fix_huff, last_block, 1, BIT_ORDER_LSB);
 	bit_stream_write_bits(bs_fix_huff, DEFLATE_COMPRESSION_FIX_HUFFMAN, 2, BIT_ORDER_LSB);
-	deflate_fix_huffman_compress(lz77_nodes, bs_fix_huff);
+	deflate_huffman_compress(lz77_nodes, bs_fix_huff, 0);
 
 	/* dynamic huffman compression */
 	bit_stream_write_bits(bs_dyn_huff, last_block, 1, BIT_ORDER_LSB);
 	bit_stream_write_bits(bs_dyn_huff, DEFLATE_COMPRESSION_DYN_HUFFMAN, 2, BIT_ORDER_LSB);
-	deflate_dyn_huffman_compress(lz77_nodes, bs_dyn_huff);
+	deflate_huffman_compress(lz77_nodes, bs_dyn_huff, 1);
 
 	/* no compression */
 	bit_stream_write_bits(bs_no, last_block, 1, BIT_ORDER_LSB);
@@ -215,10 +214,10 @@ uint8_t *deflate_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 				buf_out += deflate_no_compression_uncompress(&bs_in, buf_out);
 				break;
 			case DEFLATE_COMPRESSION_FIX_HUFFMAN:
-				buf_out += deflate_fix_huffman_uncompress(&bs_in, buf_out);
+				buf_out += deflate_huffman_uncompress(&bs_in, buf_out, 0);
 				break;
 			case DEFLATE_COMPRESSION_DYN_HUFFMAN:
-				buf_out += deflate_dyn_huffman_uncompress(&bs_in, buf_out);
+				buf_out += deflate_huffman_uncompress(&bs_in, buf_out, 1);
 				break;
 			default:
 				goto err;

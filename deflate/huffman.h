@@ -1,10 +1,22 @@
 #ifndef _DEFLATE_HUFFMAN_H_
 #define _DEFLATE_HUFFMAN_H_
 
+#include "lz77.h"
 #include "../utils/bit_stream.h"
 
-#define DEFLATE_HUFFMAN_NR_LENGTH_CODES				29
-#define DEFLATE_HUFFMAN_NR_DISTANCE_CODES			30
+#define NR_LITERALS		286
+#define NR_LENGTHS 		29
+#define NR_DISTANCES		30
+
+/**
+ * @brief Huffman table.
+ */
+struct huffman_table {
+	int			len;				/* table length */
+	int 			codes[NR_LITERALS];		/* values to huffman codes */
+	int 			codes_len[NR_LITERALS];		/* values to huffman codes lengths (= number of bits) */
+};
+
 
 /**
  * @brief Get huffman distance index.
@@ -23,40 +35,23 @@ int deflate_huffman_distance_index(int distance);
 int deflate_huffman_length_index(int length);
 
 /**
- * @brief Decode a distance literal.
+ * @brief Compress LZ77 nodes with huffman alphabet.
  * 
- * @param bs_in		input bit stream
- * @param index		index
- * 
- * @return distance
+ * @param lz77_nodes 		LZ77 nodes
+ * @param bs_out 		output bit stream
+ * @param dynamic		use dynamic alphabet ?
  */
-int deflate_huffman_decode_distance(struct bit_stream *bs_in, int index);
+void deflate_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out, int dynamic);
 
 /**
- * @brief Decode a length literal.
+ * @brief Uncompress LZ77 nodes with huffman alphabet.
+ * 
+ * @param bs_in 		input bit stream
+ * @param buf_out 		output buffer
+ * @param dynamic		use dynamic alphabet ?
  *
- * @param bs_in		input bit stream
- * @param index		index
- * 
- * @return length
+ * @return number of bytes written to output buffer
  */
-int deflate_huffman_decode_length(struct bit_stream *bs_in, int index);
-
-/**
- * @brief Encode and write distance extra bits.
- *
- * @param bs_out	output bit stream
- * @param distance	distance
- */
-void deflate_huffman_encode_distance_extra_bits(struct bit_stream *bs_out, int distance);
-
-/**
- * @brief Encode and write length extra bits.
- * 
- * @param bs_out	output bit stream
- * @param length	length
- */
-void deflate_huffman_encode_length_extra_bits(struct bit_stream *bs_out, int length);
-
+int deflate_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out, int dynamic);
 
 #endif

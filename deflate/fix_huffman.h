@@ -1,27 +1,14 @@
 #ifndef _FIX_HUFFMAN_H_
 #define _FIX_HUFFMAN_H_
 
-#include <stdint.h>
-
-#include "lz77.h"
-#include "../utils/bit_stream.h"
+#include "huffman.h"
 
 /**
- * @brief Compress lz77 nodes with fix huffman alphabet.
+ * @brief Build fix huffman tables.
  * 
- * @param lz77_nodes 	LZ77 nodes
- * @param bs_out 	output bit stream
+ * @param table_lit 		literals huffman table
+ * @param table_dist 		distances huffman table
  */
-void deflate_fix_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *bs_out);
-
-/**
- * @brief Uncompress LZ77 nodes with fix huffman codes.
- * 
- * @param bs_in 	input bit stream
- * @param buf_out 	output buffer
- * 
- * @return number of bytes written in output buffer
- */
-int deflate_fix_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out);
+void deflate_huffman_build_fix_tables(struct huffman_table *table_lit, struct huffman_table *table_dist);
 
 #endif
