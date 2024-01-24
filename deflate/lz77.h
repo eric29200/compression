@@ -6,7 +6,7 @@
 
 #define LZ77_MAX_DISTANCE	32768
 #define LZ77_MIN_LEN		3
-#define LZ77_MAX_LEN		256
+#define LZ77_MAX_LEN		258
 
 /**
  * @brief LZ77 match.
