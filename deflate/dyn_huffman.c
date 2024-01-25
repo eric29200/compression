@@ -9,15 +9,16 @@
 #include "../utils/mem.h"
 
 /**
- * @brief Build huffman trees.
+ * @brief Build dynamic huffman tables.
  * 
- * @param lz77_nodes 		input lz77 nodes
- * @param tree_lit 		output literals tree
- * @param tree_dist 		output distances tree
+ * @param lz77_nodes		LZ77 nodes
+ * @param table_lit 		literals huffman table
+ * @param table_dist 		distances huffman table
  */
-static void __build_huffman_trees(struct lz77_node *lz77_nodes, struct huffman_node **tree_lit, struct huffman_node **tree_dist)
+void deflate_huffman_build_dynamic_tables(struct lz77_node *lz77_nodes, struct huffman_table *table_lit, struct huffman_table *table_dist)
 {
 	uint32_t freqs_lit[NR_LITERALS] = { 0 }, freqs_dist[NR_DISTANCES] = { 0 };
+	struct huffman_node *tree_lit, *tree_dist;
 	struct lz77_node *lz77_node;
 
 	/* compute literals and distances frequencies */
@@ -34,52 +35,12 @@ static void __build_huffman_trees(struct lz77_node *lz77_nodes, struct huffman_n
 	freqs_lit[256]++;
 
 	/* build huffman trees */
-	*tree_lit = huffman_tree_create(freqs_lit, NR_LITERALS);
-	*tree_dist = huffman_tree_create(freqs_dist, NR_DISTANCES);
-}
+	tree_lit = huffman_tree_create(freqs_lit, NR_LITERALS);
+	tree_dist = huffman_tree_create(freqs_dist, NR_DISTANCES);
 
-/**
- * @brief Build dynamic huffman tables.
- * 
- * @param lz77_nodes		LZ77 nodes
- * @param table_lit 		literals huffman table
- * @param table_dist 		distances huffman table
- */
-void deflate_huffman_build_dynamic_tables(struct lz77_node *lz77_nodes, struct huffman_table *table_lit, struct huffman_table *table_dist)
-{
-	struct huffman_node *nodes_dist[NR_DISTANCES] = { NULL }, *nodes_lit[NR_LITERALS] = { NULL };
-	struct huffman_node *tree_lit, *tree_dist;
-	uint32_t val;
-	int i;
-
-	/* build huffman trees */
-	__build_huffman_trees(lz77_nodes, &tree_lit, &tree_dist);
-
-	/* extract huffman nodes */
-	huffman_tree_extract_nodes(tree_lit, nodes_lit);
-	huffman_tree_extract_nodes(tree_dist, nodes_dist);
-
-	/* build literals table */
-	memset(table_lit, 0, sizeof(struct huffman_table));
-	table_lit->len = NR_LITERALS;
-	for (i = 0; i < NR_LITERALS; i++) {
-		if (nodes_lit[i]) {
-			val = nodes_lit[i]->val;
-			table_lit->codes[val] = nodes_lit[i]->huffman_code;
-			table_lit->codes_len[val] = nodes_lit[i]->nr_bits;
-		}
-	}
-
-	/* build distances table */
-	memset(table_dist, 0, sizeof(struct huffman_table));
-	table_dist->len = NR_DISTANCES;
-	for (i = 0; i < NR_DISTANCES; i++) {
-		if (nodes_dist[i]) {
-			val = nodes_dist[i]->val;
-			table_dist->codes[val] = nodes_dist[i]->huffman_code;
-			table_dist->codes_len[val] = nodes_dist[i]->nr_bits;
-		}
-	}
+	/* build huffman tables */
+	huffman_table_build(tree_lit, table_lit, NR_LITERALS);
+	huffman_table_build(tree_dist, table_dist, NR_DISTANCES);
 
 	/* free huffman trees */
 	huffman_tree_free(tree_lit);
@@ -95,7 +56,7 @@ void deflate_huffman_build_dynamic_tables(struct lz77_node *lz77_nodes, struct h
  */
 void deflate_huffman_write_tables(struct bit_stream *bs_out, struct huffman_table *table_lit, struct huffman_table *table_dist)
 {
-	int i;
+	uint32_t i;
 
 	/* write literals table */
 	for (i = 0; i < table_lit->len; i++) {
@@ -121,10 +82,10 @@ void deflate_huffman_write_tables(struct bit_stream *bs_out, struct huffman_tabl
  */
 void deflate_huffman_read_tables(struct bit_stream *bs_in, struct huffman_table *table_lit, struct huffman_table *table_dist)
 {
-	int i;
+	uint32_t i;
 
 	/* read literals table */
-	table_lit->len = NR_LITERALS;
+	huffman_table_create(table_lit, NR_LITERALS);
 	for (i = 0; i < table_lit->len; i++) {
 		table_lit->codes_len[i] = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
 		if (table_lit->codes_len[i])
@@ -134,7 +95,7 @@ void deflate_huffman_read_tables(struct bit_stream *bs_in, struct huffman_table 
 	}
 
 	/* read distances table */
-	table_dist->len = NR_DISTANCES;
+	huffman_table_create(table_dist, NR_DISTANCES);
 	for (i = 0; i < table_dist->len; i++) {
 		table_dist->codes_len[i] = bit_stream_read_bits(bs_in, 9, BIT_ORDER_MSB);
 		if (table_dist->codes_len[i])

@@ -15,13 +15,9 @@ void deflate_huffman_build_fix_tables(struct huffman_table *table_lit, struct hu
 {
 	int i, j;
 
-	/* allocate literals table */
-	memset(table_lit, 0, sizeof(struct huffman_table));
-	table_lit->len = NR_LITERALS;
-
-	/* allocate distances table */
-	memset(table_dist, 0, sizeof(struct huffman_table));
-	table_dist->len = NR_DISTANCES;
+	/* allocate huffman tables */
+	huffman_table_create(table_lit, NR_LITERALS);
+	huffman_table_create(table_dist, NR_DISTANCES);
 
 	/*
 	 * - values from 256 to 279 = codes from 0 to 23 on 7 bits

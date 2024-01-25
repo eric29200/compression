@@ -2,20 +2,12 @@
 #define _DEFLATE_HUFFMAN_H_
 
 #include "lz77.h"
+#include "../huffman/huffman_table.h"
 #include "../utils/bit_stream.h"
 
 #define NR_LITERALS		286
 #define NR_LENGTHS 		29
 #define NR_DISTANCES		30
-
-/**
- * @brief Huffman table.
- */
-struct huffman_table {
-	int			len;				/* table length */
-	int 			codes[NR_LITERALS];		/* values to huffman codes */
-	int 			codes_len[NR_LITERALS];		/* values to huffman codes lengths (= number of bits) */
-};
 
 /**
  * @brief Get huffman distance index.

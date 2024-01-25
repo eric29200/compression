@@ -151,33 +151,6 @@ static void __write_length(int length, struct huffman_table *table, struct bit_s
 }
 
 /**
- * @brief Read a symbol.
- * 
- * @param bs_in		input bit stream
- * @param table		huffman table
- * 
- * @return symbol
- */
-static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *table)
-{
-	int code = 0, code_len = 0, i;
-
-	for (;;) {
-		/* read next bit */
-		code |= bit_stream_read_bits(bs_in, 1, BIT_ORDER_MSB);
-		code_len++;
-
-		/* try to find code in huffman table */
-		for (i = 0; i < table->len; i++)
-			if (table->codes_len[i] == code_len && table->codes[i] == code)
-				return i;
-
-		/* go to next bit */
-		code <<= 1;
-	}
-}
-
-/**
  * @brief Compress LZ77 nodes with huffman alphabet.
  * 
  * @param lz77_nodes 		LZ77 nodes
@@ -211,6 +184,10 @@ void deflate_huffman_compress(struct lz77_node *lz77_nodes, struct bit_stream *b
 
 	/* write end of block */
 	bit_stream_write_bits(bs_out, table_lit.codes[256], table_lit.codes_len[256], BIT_ORDER_MSB);
+
+	/* free huffman tables */
+	huffman_table_free(&table_lit);
+	huffman_table_free(&table_dist);
 }
 
 /**
@@ -236,7 +213,7 @@ int deflate_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out, int d
 	/* uncompress */
 	for (n = 0;;) {
 		/* read next literal */
-		literal = __read_symbol(bs_in, &table_lit);
+		literal = huffman_table_read_symbol(bs_in, &table_lit);
 
 		/* end of block */
 		if (literal == 256)
@@ -252,7 +229,7 @@ int deflate_huffman_uncompress(struct bit_stream *bs_in, uint8_t *buf_out, int d
 		length = __decode_length(bs_in, literal - 257);
 
 		/* decode lz77 distance */
-		distance = __decode_distance(bs_in, __read_symbol(bs_in, &table_dist));
+		distance = __decode_distance(bs_in, huffman_table_read_symbol(bs_in, &table_dist));
 
 		/* duplicate pattern */
 		for (i = 0; i < length; i++, n++)
