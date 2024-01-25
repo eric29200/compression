@@ -17,7 +17,6 @@ struct huffman_table {
 	int 			codes_len[NR_LITERALS];		/* values to huffman codes lengths (= number of bits) */
 };
 
-
 /**
  * @brief Get huffman distance index.
  * 

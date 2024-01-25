@@ -12,7 +12,7 @@
 struct huffman_node {
 	uint32_t		val;				/* value */
 	uint32_t 		freq;				/* frequency */
-	uint32_t		huffman_code;			/* hufman code */
+	uint32_t		huffman_code;			/* huffman code */
 	uint32_t		nr_bits;			/* number of bits in huffman code */
 	struct huffman_node *	left;				/* left node */
 	struct huffman_node *	right;				/* right node */
