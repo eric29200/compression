@@ -28,7 +28,7 @@
  * @param nodes 	huffman nodes
  * @param header_len	output header length
  */
-static uint8_t *__write_huffman_header(uint32_t src_len, struct huff_node **nodes, uint32_t *header_len)
+static uint8_t *__write_huffman_header(uint32_t src_len, struct huffman_node **nodes, uint32_t *header_len)
 {
 	uint8_t *header, *buf_out;
 	uint32_t i, n;
@@ -115,9 +115,9 @@ static uint32_t __read_huffman_header(uint8_t *buf_in, uint32_t *freqs, uint32_t
  * @param nodes 	huffman nodes
  * @param bs_out 	output bit stream
  */
-static void __write_huffman_content(uint8_t *src, uint32_t src_len, struct huff_node **nodes, struct bit_stream *bs_out)
+static void __write_huffman_content(uint8_t *src, uint32_t src_len, struct huffman_node **nodes, struct bit_stream *bs_out)
 {
-	struct huff_node *node;
+	struct huffman_node *node;
 	uint32_t i;
 
 	for (i = 0; i < src_len; i++) {
@@ -125,7 +125,7 @@ static void __write_huffman_content(uint8_t *src, uint32_t src_len, struct huff_
 		node = nodes[src[i]];
 
 		/* write huffman code */
-		bit_stream_write_bits(bs_out, node->huff_code, node->nr_bits, BIT_ORDER_MSB);
+		bit_stream_write_bits(bs_out, node->huffman_code, node->nr_bits, BIT_ORDER_MSB);
 	}
 }
 
@@ -137,9 +137,9 @@ static void __write_huffman_content(uint8_t *src, uint32_t src_len, struct huff_
  *
  * @return huffman value
  */
-static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
+static int __read_huffman_val(struct bit_stream *bs_in, struct huffman_node *root)
 {
-	struct huff_node *node;
+	struct huffman_node *node;
 	uint32_t bit;
 
 	for (node = root;;) {
@@ -166,7 +166,7 @@ static int __read_huffman_val(struct bit_stream *bs_in, struct huff_node *root)
  * @param dst_len	output buffer length
  * @param root 		huffman tree
  */
-static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, uint32_t dst_len, struct huff_node *root)
+static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, uint32_t dst_len, struct huffman_node *root)
 {
 	uint32_t val, i;
 
@@ -191,7 +191,7 @@ static void __read_huffman_content(struct bit_stream *bs_in, uint8_t *dst, uint3
  */
 uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
-	struct huff_node *huff_tree, *nodes[NR_CHARACTERS] = { NULL };
+	struct huffman_node *tree, *nodes[NR_CHARACTERS] = { NULL };
 	uint32_t i, freqs[NR_CHARACTERS] = { 0 };
 	struct bit_stream bs_out = { 0 };
 	uint8_t *dst;
@@ -201,10 +201,10 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		freqs[src[i]]++;
 
 	/* build huffman tree */
-	huff_tree = huffman_tree_create(freqs, NR_CHARACTERS);
+	tree = huffman_tree_create(freqs, NR_CHARACTERS);
 
 	/* extract huffman nodes */
-	huffman_tree_extract_nodes(huff_tree, nodes);
+	huffman_tree_extract_nodes(tree, nodes);
 
 	/* write huffman header (= write dictionnary with frequencies) */
 	dst = __write_huffman_header(src_len, nodes, dst_len);
@@ -222,7 +222,7 @@ uint8_t *huffman_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	*dst_len = bs_out.byte_offset + (bs_out.bit_offset ? 1 : 0);
 
 	/* free huffman tree */
-	huffman_tree_free(huff_tree);
+	huffman_tree_free(tree);
 
 	return bs_out.buf;
 }
@@ -240,7 +240,7 @@ uint8_t *huffman_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	uint32_t freqs[NR_CHARACTERS] = { 0 };
 	struct bit_stream bs_in = { 0 };
-	struct huff_node *huff_tree;
+	struct huffman_node *tree;
 	uint32_t header_len;
 	uint8_t *dst;
 
@@ -251,17 +251,17 @@ uint8_t *huffman_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	dst = (uint8_t *) xmalloc(*dst_len);
 
 	/* build huffman tree */
-	huff_tree = huffman_tree_create(freqs, NR_CHARACTERS);
+	tree = huffman_tree_create(freqs, NR_CHARACTERS);
 
 	/* set input bit stream */
 	bs_in.capacity = src_len - header_len;
 	bs_in.buf = src + header_len;
 
 	/* decode input buffer */
-	__read_huffman_content(&bs_in, dst, *dst_len, huff_tree);
+	__read_huffman_content(&bs_in, dst, *dst_len, tree);
 
 	/* free huffman tree */
-	huffman_tree_free(huff_tree);
+	huffman_tree_free(tree);
 
 	return dst;
 }

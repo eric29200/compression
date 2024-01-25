@@ -25,9 +25,9 @@
  * 
  * @return result
  */
-static int __huff_node_compare(const void *h1, const void *h2)
+static int __huffman_node_compare(const void *h1, const void *h2)
 {
-	return ((struct huff_node *) h1)->freq - ((struct huff_node *) h2)->freq;
+	return ((struct huffman_node *) h1)->freq - ((struct huffman_node *) h2)->freq;
 }
 
 /**
@@ -38,16 +38,16 @@ static int __huff_node_compare(const void *h1, const void *h2)
  *
  * @return huffman node
  */
-static struct huff_node *__huff_node_create(uint32_t val, uint32_t freq)
+static struct huffman_node *__huffman_node_create(uint32_t val, uint32_t freq)
 {
-	struct huff_node *node;
+	struct huffman_node *node;
 
-	node = (struct huff_node *) xmalloc(sizeof(struct huff_node));
+	node = (struct huffman_node *) xmalloc(sizeof(struct huffman_node));
 	node->val = val;
 	node->freq = freq;
 	node->left = NULL;
 	node->right = NULL;
-	node->huff_code = 0;
+	node->huffman_code = 0;
 	node->nr_bits = 0;
 
 	return node;
@@ -60,7 +60,7 @@ static struct huff_node *__huff_node_create(uint32_t val, uint32_t freq)
  * @param code 		huffman code
  * @param nr_bits	number of bits
  */
-static void __huffman_tree_build_codes(struct huff_node *root, uint32_t code, uint32_t nr_bits)
+static void __huffman_tree_build_codes(struct huffman_node *root, uint32_t code, uint32_t nr_bits)
 {
 	/* build huffman code on left (encode with a zero) */
 	if (root->left)
@@ -72,7 +72,7 @@ static void __huffman_tree_build_codes(struct huff_node *root, uint32_t code, ui
 
 	/* leaf : create code */
 	if (__huffman_leaf(root)) {
-		root->huff_code = code;
+		root->huffman_code = code;
 		root->nr_bits = nr_bits;
 	}
 }
@@ -85,14 +85,14 @@ static void __huffman_tree_build_codes(struct huff_node *root, uint32_t code, ui
  * 
  * @return huffman tree
  */
-struct huff_node *huffman_tree_create(uint32_t *freqs, uint32_t nr_characters)
+struct huffman_node *huffman_tree_create(uint32_t *freqs, uint32_t nr_characters)
 {
-	struct huff_node *left, *right, *top, *node;
+	struct huffman_node *left, *right, *top, *node;
 	struct heap *heap;
 	uint32_t i;
 
 	/* create a heap */
-	heap = heap_create(HEAP_MIN, nr_characters * 2, __huff_node_compare);
+	heap = heap_create(HEAP_MIN, nr_characters * 2, __huffman_node_compare);
 	if (!heap)
 		return NULL;
 
@@ -102,7 +102,7 @@ struct huff_node *huffman_tree_create(uint32_t *freqs, uint32_t nr_characters)
 			continue;
 
 		/* create node */
-		node = __huff_node_create(i, freqs[i]);
+		node = __huffman_node_create(i, freqs[i]);
 		if (!node)
 			goto out;
 
@@ -117,7 +117,7 @@ struct huff_node *huffman_tree_create(uint32_t *freqs, uint32_t nr_characters)
 		right = heap_min(heap);
 
 		/* build parent node (= left frequency + right frequency)*/
-		top = __huff_node_create('$', left->freq + right->freq);
+		top = __huffman_node_create('$', left->freq + right->freq);
 		if (!top)
 			return NULL;
 
@@ -143,7 +143,7 @@ out:
  * @param root		huffman tree
  * @param nodes		output nodes
  */
-void huffman_tree_extract_nodes(struct huff_node *root, struct huff_node **nodes)
+void huffman_tree_extract_nodes(struct huffman_node *root, struct huffman_node **nodes)
 {
 	if (!root)
 		return;
@@ -164,9 +164,9 @@ void huffman_tree_extract_nodes(struct huff_node *root, struct huff_node **nodes
  * 
  * @param root 		root node
  */
-void huffman_tree_free(struct huff_node *root)
+void huffman_tree_free(struct huffman_node *root)
 {
-	struct huff_node *left, *right;
+	struct huffman_node *left, *right;
 
 	if (!root)
 		return;

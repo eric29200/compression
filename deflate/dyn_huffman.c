@@ -15,7 +15,7 @@
  * @param tree_lit 		output literals tree
  * @param tree_dist 		output distances tree
  */
-static void __build_huffman_trees(struct lz77_node *lz77_nodes, struct huff_node **tree_lit, struct huff_node **tree_dist)
+static void __build_huffman_trees(struct lz77_node *lz77_nodes, struct huffman_node **tree_lit, struct huffman_node **tree_dist)
 {
 	uint32_t freqs_lit[NR_LITERALS] = { 0 }, freqs_dist[NR_DISTANCES] = { 0 };
 	struct lz77_node *lz77_node;
@@ -47,8 +47,8 @@ static void __build_huffman_trees(struct lz77_node *lz77_nodes, struct huff_node
  */
 void deflate_huffman_build_dynamic_tables(struct lz77_node *lz77_nodes, struct huffman_table *table_lit, struct huffman_table *table_dist)
 {
-	struct huff_node *nodes_dist[NR_DISTANCES] = { NULL }, *nodes_lit[NR_LITERALS] = { NULL };
-	struct huff_node *tree_lit, *tree_dist;
+	struct huffman_node *nodes_dist[NR_DISTANCES] = { NULL }, *nodes_lit[NR_LITERALS] = { NULL };
+	struct huffman_node *tree_lit, *tree_dist;
 	uint32_t val;
 	int i;
 
@@ -65,7 +65,7 @@ void deflate_huffman_build_dynamic_tables(struct lz77_node *lz77_nodes, struct h
 	for (i = 0; i < NR_LITERALS; i++) {
 		if (nodes_lit[i]) {
 			val = nodes_lit[i]->val;
-			table_lit->codes[val] = nodes_lit[i]->huff_code;
+			table_lit->codes[val] = nodes_lit[i]->huffman_code;
 			table_lit->codes_len[val] = nodes_lit[i]->nr_bits;
 		}
 	}
@@ -76,7 +76,7 @@ void deflate_huffman_build_dynamic_tables(struct lz77_node *lz77_nodes, struct h
 	for (i = 0; i < NR_DISTANCES; i++) {
 		if (nodes_dist[i]) {
 			val = nodes_dist[i]->val;
-			table_dist->codes[val] = nodes_dist[i]->huff_code;
+			table_dist->codes[val] = nodes_dist[i]->huffman_code;
 			table_dist->codes_len[val] = nodes_dist[i]->nr_bits;
 		}
 	}

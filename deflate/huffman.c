@@ -7,7 +7,7 @@
 /**
  * @brief Fix huffman lengths.
  */
-static int huff_lengths[NR_LENGTHS] = {
+static int huffman_lengths[NR_LENGTHS] = {
 	3,	 4,	5,	  6,	  7,	  8,	  9,	 10,	 11, 	13,
 	15, 	17, 	19,	 23,	 27,	 31,	 35,	 43,	 51, 	59,
 	67, 	83, 	99, 	115, 	131, 	163, 	195, 	227, 	258
@@ -16,7 +16,7 @@ static int huff_lengths[NR_LENGTHS] = {
 /**
  * @brief Fix huffman lengths extra bits.
  */
-static int huff_lengths_extra_bits[NR_LENGTHS] = {
+static int huffman_lengths_extra_bits[NR_LENGTHS] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 	1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
 	4, 4, 4, 4, 5, 5, 5, 5, 0
@@ -25,7 +25,7 @@ static int huff_lengths_extra_bits[NR_LENGTHS] = {
 /**
  * @brief Fix huffman distances.
  */
-static int huff_distances[NR_DISTANCES] = {
+static int huffman_distances[NR_DISTANCES] = {
 	   1,	   2,	   3,	   4,	   5,	   7,	   9,	   13,	   17,	   25,
 	  33,	  49,	  65,	  97,	 129,	 193,	 257,	  385,	  513,	  769,
 	1025, 	1537, 	2049, 	3073, 	4097, 	6145, 	8193, 	12289, 	16385, 	24577
@@ -34,7 +34,7 @@ static int huff_distances[NR_DISTANCES] = {
 /**
  * @brief Fix huffman distances extra bits.
  */
-static int huff_distances_extra_bits[NR_DISTANCES] = {
+static int huffman_distances_extra_bits[NR_DISTANCES] = {
 	0, 	0,	 0,	 0,	 1,	 1,	 2,	 2,	 3,	 3,
 	4, 	4,	 5,	 5,	 6,	 6,	 7,	 7,	 8,	 8,
 	9, 	9, 	10, 	10, 	11, 	11, 	12, 	12, 	13, 	13
@@ -50,7 +50,7 @@ int deflate_huffman_distance_index(int distance)
 	int i;
 
 	for (i = 1; i < NR_DISTANCES; i++)
-		if (distance < huff_distances[i])
+		if (distance < huffman_distances[i])
 			break;
 
 	return i - 1;
@@ -68,7 +68,7 @@ int deflate_huffman_length_index(int length)
 	int i;
 
 	for (i = 1; i < NR_LENGTHS; i++)
-		if (length < huff_lengths[i])
+		if (length < huffman_lengths[i])
 			break;
 
 	return i - 1;
@@ -84,7 +84,7 @@ int deflate_huffman_length_index(int length)
  */
 static int __decode_distance(struct bit_stream *bs_in, int index)
 {
-	return huff_distances[index] + bit_stream_read_bits(bs_in, huff_distances_extra_bits[index], BIT_ORDER_LSB);
+	return huffman_distances[index] + bit_stream_read_bits(bs_in, huffman_distances_extra_bits[index], BIT_ORDER_LSB);
 }
 
 /**
@@ -97,68 +97,68 @@ static int __decode_distance(struct bit_stream *bs_in, int index)
  */
 static int __decode_length(struct bit_stream *bs_in, int index)
 {
-	return huff_lengths[index] + bit_stream_read_bits(bs_in, huff_lengths_extra_bits[index], BIT_ORDER_LSB);
+	return huffman_lengths[index] + bit_stream_read_bits(bs_in, huffman_lengths_extra_bits[index], BIT_ORDER_LSB);
 }
 
 /**
  * @brief Write a literal.
  * 
  * @param literal 		literal
- * @param huff_table		huffman table
+ * @param table			huffman table
  * @param bs_out 		output bit stream
  */
-static void __write_literal(uint8_t literal, struct huffman_table *huff_table, struct bit_stream *bs_out)
+static void __write_literal(uint8_t literal, struct huffman_table *table, struct bit_stream *bs_out)
 {
-	bit_stream_write_bits(bs_out, huff_table->codes[literal], huff_table->codes_len[literal], BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, table->codes[literal], table->codes_len[literal], BIT_ORDER_MSB);
 }
 
 /**
  * @brief Write a distance.
  * 
  * @param distance 		distance
- * @param huff_table		huffman table
+ * @param table			huffman table
  * @param bs_out 		output bit stream
  */
-static void __write_distance(int distance, struct huffman_table *huff_table, struct bit_stream *bs_out)
+static void __write_distance(int distance, struct huffman_table *table, struct bit_stream *bs_out)
 {
 	/* get distance index */
 	int i = deflate_huffman_distance_index(distance);
 	
 	/* write distance index */
-	bit_stream_write_bits(bs_out, huff_table->codes[i], huff_table->codes_len[i], BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, table->codes[i], table->codes_len[i], BIT_ORDER_MSB);
 
 	/* write distance extra bits */
-	bit_stream_write_bits(bs_out, distance - huff_distances[i], huff_distances_extra_bits[i], BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_out, distance - huffman_distances[i], huffman_distances_extra_bits[i], BIT_ORDER_LSB);
 }
 
 /**
  * @brief Write a length.
  * 
  * @param length 		length
- * @param huff_table		huffman table
+ * @param table		huffman table
  * @param bs_out 		output bit stream
  */
-static void __write_length(int length, struct huffman_table *huff_table, struct bit_stream *bs_out)
+static void __write_length(int length, struct huffman_table *table, struct bit_stream *bs_out)
 {
 	/* get length index */
 	int i = deflate_huffman_length_index(length);
 
 	/* write length index */
-	bit_stream_write_bits(bs_out, huff_table->codes[i + 257], huff_table->codes_len[i + 257], BIT_ORDER_MSB);
+	bit_stream_write_bits(bs_out, table->codes[i + 257], table->codes_len[i + 257], BIT_ORDER_MSB);
 
 	/* write length extra bits */
-	bit_stream_write_bits(bs_out, length - huff_lengths[i], huff_lengths_extra_bits[i], BIT_ORDER_LSB);
+	bit_stream_write_bits(bs_out, length - huffman_lengths[i], huffman_lengths_extra_bits[i], BIT_ORDER_LSB);
 }
 
 /**
  * @brief Read a symbol.
  * 
  * @param bs_in		input bit stream
- * @param huff_table	huffman table
+ * @param table		huffman table
  * 
  * @return symbol
  */
-static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *huff_table)
+static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *table)
 {
 	int code = 0, code_len = 0, i;
 
@@ -168,8 +168,8 @@ static int __read_symbol(struct bit_stream *bs_in, struct huffman_table *huff_ta
 		code_len++;
 
 		/* try to find code in huffman table */
-		for (i = 0; i < huff_table->len; i++)
-			if (huff_table->codes_len[i] == code_len && huff_table->codes[i] == code)
+		for (i = 0; i < table->len; i++)
+			if (table->codes_len[i] == code_len && table->codes[i] == code)
 				return i;
 
 		/* go to next bit */
