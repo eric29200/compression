@@ -28,31 +28,62 @@ void huffman_table_create(struct huffman_table *table, uint32_t len)
  * @param table			output huffman table
  * @param len			huffman table length
  */
-void huffman_table_build(struct huffman_node *tree, struct huffman_table *table, uint32_t len)
+void huffman_table_build_from_tree(struct huffman_node *tree, struct huffman_table *table, uint32_t len)
 {
 	struct huffman_node **nodes;
-	uint32_t val, i;
+	uint32_t *codes_len, i;
 
 	/* extract huffman nodes */
 	nodes = (struct huffman_node **) xmalloc(sizeof(struct huffman_node *) * len);
 	memset(nodes, 0, sizeof(struct huffman_node *) * len);
 	huffman_tree_extract_nodes(tree, nodes);
 
-	/* create huffman table */
-	huffman_table_create(table, len);
+	/* extract codes length */
+	codes_len = xmalloc(sizeof(uint32_t) * len);
+	for (i = 0; i < len; i++)
+		codes_len[i] = nodes[i] ? nodes[i]->nr_bits : 0;
 
 	/* build huffman table */
-	for (i = 0; i < len; i++) {
-		if (nodes[i]) {
-			val = nodes[i]->val;
-			table->codes[val] = nodes[i]->huffman_code;
-			table->codes_len[val] = nodes[i]->nr_bits;
-		}
-	}
+	huffman_table_build_from_lengths(codes_len, len, table);
 
 	/* free nodes */
 	xfree(nodes);
+	xfree(codes_len);
 }
+
+/**
+ * @brief Build a huffman table from codes lengths.
+ * 
+ * @param codes_len 		codes lengths
+ * @param nr_codes 		number of codes
+ * @param table 		output huffman table
+ */
+void huffman_table_build_from_lengths(uint32_t *codes_len, uint32_t nr_codes, struct huffman_table *table)
+{
+	uint32_t max = 0, code = 0, i, j;
+
+	/* find maximum length */
+	for (i = 0, max = 0; i < nr_codes; i++)
+		max = codes_len[i] > max ? codes_len[i] : max;
+
+	/* create huffman table */
+	huffman_table_create(table, nr_codes);
+
+	/* for each length */
+	for (i = 1; i <= max; i++) {
+		/* find matching codes */
+		for (j = 0; j < nr_codes; j++) {
+			if (codes_len[j] == i) {
+				table->codes[j] = code++;
+				table->codes_len[j] = i;
+			}
+		}
+
+		/* right shift code */
+		code <<= 1;
+	}
+}
+
 
 /**
  * @brief Free a huffman table.

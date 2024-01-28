@@ -30,7 +30,16 @@ void huffman_table_create(struct huffman_table *table, uint32_t len);
  * @param table			output huffman table
  * @param len			huffman table length
  */
-void huffman_table_build(struct huffman_node *tree, struct huffman_table *table, uint32_t len);
+void huffman_table_build_from_tree(struct huffman_node *tree, struct huffman_table *table, uint32_t len);
+
+/**
+ * @brief Build a huffman table from codes lengths.
+ * 
+ * @param codes_len 		codes lengths
+ * @param nr_codes 		number of codes
+ * @param table 		output huffman table
+ */
+void huffman_table_build_from_lengths(uint32_t *codes_len, uint32_t nr_codes, struct huffman_table *table);
 
 /**
  * @brief Free a huffman table.
