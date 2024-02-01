@@ -12,8 +12,8 @@
  * @brief LZ77 match.
  */
 struct lz77_match {
-	int 				distance;
-	int 				length;
+	uint32_t 			distance;
+	uint32_t 			length;
 };
 
 /**
@@ -36,7 +36,7 @@ struct lz77_node {
  * 
  * @return output LZ77 nodes
  */
-struct lz77_node *deflate_lz77_compress(uint8_t *buf, int len);
+struct lz77_node *deflate_lz77_compress(uint8_t *buf, uint32_t len);
 
 /**
  * @brief Free LZ77 nodes.

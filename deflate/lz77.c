@@ -23,7 +23,7 @@ struct hash_node {
  * 
  * @return new node
  */
-static struct hash_node *__hash_add_node(struct hash_node *hash_nodes, int *nr_hash_nodes, int index, struct hash_node *head)
+static struct hash_node *__hash_add_node(struct hash_node *hash_nodes, uint32_t *nr_hash_nodes, uint32_t index, struct hash_node *head)
 {
 	struct hash_node *node;
 
@@ -82,7 +82,7 @@ static struct lz77_node *__lz77_create_literal_node(uint8_t c)
  * 
  * @return LZ77 node
  */
-static struct lz77_node *__lz77_create_match_node(int distance, int length)
+static struct lz77_node *__lz77_create_match_node(int distance, uint32_t length)
 {
 	struct lz77_node *node;
 
@@ -158,9 +158,9 @@ static struct lz77_node *__lz77_best_match(struct hash_node *hash_match, uint8_t
  * 
  * @return number of bytes skipped
  */
-static int lz77_skip(uint8_t *buf, struct hash_node *hash_nodes, int *nr_hash_nodes, struct hash_node **hash_table, uint8_t *ptr, int len)
+static int lz77_skip(uint8_t *buf, struct hash_node *hash_nodes, uint32_t *nr_hash_nodes, struct hash_node **hash_table, uint8_t *ptr, uint32_t len)
 {
-	int i, index;
+	uint32_t i, index;
 
 	/* hash skipped bytes */
 	for (i = 0; i < len; i++) {
@@ -179,11 +179,11 @@ static int lz77_skip(uint8_t *buf, struct hash_node *hash_nodes, int *nr_hash_no
  * 
  * @return output LZ77 nodes
  */
-struct lz77_node *deflate_lz77_compress(uint8_t *buf, int len)
+struct lz77_node *deflate_lz77_compress(uint8_t *buf, uint32_t len)
 {
 	struct lz77_node *lz77_head = NULL, *lz77_tail = NULL;
 	struct hash_node **hash_table, *hash_nodes, *hash_match;
-	int i, index, nr_hash_nodes;
+	uint32_t i, index, nr_hash_nodes;
 	struct lz77_node *lz77_node;
 	uint8_t *ptr;
 
