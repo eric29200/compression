@@ -290,7 +290,7 @@ uint8_t *lz77_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	bit_stream_write_bits(&bs_out, htole32(src_len), 32, BIT_ORDER_MSB);
 
 	/* compress input buffer */
-	nodes = lz77_compress_buf(src, src_len, 255, 32768);
+	nodes = lz77_compress_buf(src, src_len, UINT8_MAX, UINT16_MAX);
 
 	/* write lz77 nodes */
 	for (node = nodes; node != NULL; node = node->next) {
