@@ -1,96 +1,275 @@
 /*
  * LZ77 algorithm = lossless data compression algorithm.
- * This algorithm maintains a sliding window.
- * 1 - read first window of input buffer and write it exactly to the output buffer
- * 2 - try to find a matching pattern of next characher(s) in the window
- *	-> if it matches, write window reference (offset), pattern length and next character
- *	-> else write 0,0 and current character
+ * This algorithm maintains a sliding window and try to find a matching pattern in the window :
+ *   - if a match is found, pattern offset and length are written
+ *   - otherwiser, literal is written
  */
 #include <string.h>
 #include <endian.h>
 
 #include "lz77.h"
+#include "../utils/bit_stream.h"
 #include "../utils/mem.h"
 
-#define WINDOW_SIZE		255
-#define GROW_SIZE		64
-#define MIN(x, y)		((x) < (y) ? (x) : (y))
-#define MAX(x, y)		((x) > (y) ? (x) : (y))
+#define LZ77_MIN_LEN			3
+#define LZ77_HASH_SIZE			32768
 
 /**
- * @brief LZ77 node.
+ * @brief Hash table node.
  */
-struct lz77_node {
-	uint8_t		off;		/* offset from current position */
-	uint8_t		len;		/* match length */
-	uint8_t		literal;	/* next literal character */
+struct hash_node {
+	int 			index;
+	struct hash_node *	next;
 };
 
 /**
- * @brief Find a matching pattern inside a window.
+ * @brief Add a node to a hash table.
  * 
- * @param window 	window (= look aside buffer)
- * @param buf 		buffer to compress
- * @param len 		buffer length
- * @param node		output node
+ * @param hash_nodes 		nodes
+ * @param nr_hash_nodes		number of nodes in hash table
+ * @param index 		node index
+ * @param head 			head of nodes
+ * 
+ * @return new node
  */
-static void __lz77_match(uint8_t *window, uint8_t *buf, uint32_t len, struct lz77_node *node)
+static struct hash_node *__hash_add_node(struct hash_node *hash_nodes, uint32_t *nr_hash_nodes, uint32_t index, struct hash_node *head)
 {
-	uint32_t i, j, max_match_len;
+	struct hash_node *node;
 
-	/* reset lz77 node */
-	node->off = 0;
-	node->len = 0;
-	node->literal = 0;
+	/* get next free node */
+	node = &hash_nodes[*nr_hash_nodes];
+	*nr_hash_nodes += 1;
 
-	for (i = 0; i < WINDOW_SIZE; i++) {
-		/* compute max match length */
-		max_match_len = MIN(WINDOW_SIZE - i, len);
+	/* set node */
+	node->index = index;
+	node->next = head;
 
-		/* compute match */
-		for (j = 0; j < max_match_len && window[i + j] == buf[j]; j++);
-
-		/* update best match */
-		if (j > node->len) {
-			node->off = WINDOW_SIZE - i;
-			node->len = j;
-			node->literal = buf[j];
-		}
-	}
-
-	/* no match = literal node */
-	if (node->len == 0) {
-		node->off = 0;
-		node->len = 0;
-		node->literal = *buf;
-	}
+	return node;
 }
 
 /**
- * @brief Grow output buffer if needed.
+ * @brief Hash 3 characters.
  * 
- * @param dst 			output buffer
- * @param buf_out 		current position in output buffer
- * @param dst_capacity 		output buffer capacity
- * @param size_needed		size needed
+ * @param s 	characters to hash
+ * 
+ * @return hash code
  */
-static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capacity, uint32_t size_needed)
+static inline int __lz77_hash(uint8_t *s)
 {
-	uint32_t pos;
+	int h, i;
 
-	/* no need to grower buffer */
-	if ((uint32_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
+	for (i = 1, h = *s++; i < LZ77_MIN_LEN; i++)
+		h = (h << 5) - h + *s++;
+
+	return h % LZ77_HASH_SIZE;
+}
+
+/**
+ * @brief Create a LZ77 literal node.
+ * 
+ * @param c 	literal
+ * 
+ * @return LZ77 node
+ */
+static struct lz77_node *__lz77_create_literal_node(uint8_t c)
+{
+	struct lz77_node *node;
+
+	node = (struct lz77_node *) xmalloc(sizeof(struct lz77_node));
+	node->is_literal = 1;
+	node->data.literal = c;
+	node->next = NULL;
+
+	return node;
+}
+
+/**
+ * @brief Create a LZ77 match node.
+ * 
+ * @param distance	distance from current position
+ * @param length	match length
+ * 
+ * @return LZ77 node
+ */
+static struct lz77_node *__lz77_create_match_node(int distance, uint32_t length)
+{
+	struct lz77_node *node;
+
+	node = (struct lz77_node *) xmalloc(sizeof(struct lz77_node));
+	node->is_literal = 0;
+	node->data.match.distance = distance;
+	node->data.match.length = length;
+	node->next = NULL;
+
+	return node;
+}
+
+/**
+ * @brief Find best match.
+ * 
+ * @param match 		hash match
+ * @param buf 			input buffer
+ * @param len 			input buffer length
+ * @param ptr 			current pointer in input buffer
+ * @param max_match_len		maximum match length
+ * @param max_match_dist	maximum match distance
+ *
+ * @return LZ77 node (match or literal)
+ */
+static struct lz77_node *__lz77_best_match(struct hash_node *hash_match, uint8_t *buf, int len, uint8_t *ptr, uint32_t max_match_len, uint32_t max_match_dist)
+{
+	uint32_t max, len_max = 0, i;
+	struct hash_node *match_max;
+	uint8_t *match_buf;
+
+	/* compute maximum match length */
+	max = len - (ptr - buf);
+	if (max > max_match_len)
+		max = max_match_len;
+
+	/* for each match */
+	for (; hash_match != NULL; hash_match = hash_match->next) {
+		match_buf = buf + hash_match->index;
+
+		/* match too far */
+		if (ptr - match_buf > max_match_dist)
+			break;
+
+		/* no way to improve best match */
+		if (len_max >= max || match_buf[len_max] != ptr[len_max])
+			continue;
+
+		/* compute match length */
+		for (i = 0; match_buf[i] == ptr[i] && i < max; i++);
+
+		/* update maximum match length */
+		if (i > len_max) {
+			len_max = i;
+			match_max = hash_match;
+		}
+	}
+
+	/* match too short : create a literal */
+	if (len_max < LZ77_MIN_LEN)
+		return __lz77_create_literal_node(*ptr);
+
+	/* create a match node */
+	return __lz77_create_match_node(ptr - (buf + match_max->index), len_max);
+}
+
+/**
+ * @brief Skip 'len' bytes (and hash skipped bytes).
+ * 
+ * @param buf 		input buffer
+ * @param nodes 	hash nodes
+ * @param nr_hash_nodes	number of hash nodes
+ * @param hash_table 	hash table
+ * @param ptr 		current pointer in input buffer
+ * @param len 		number of bytes to skip
+ * 
+ * @return number of bytes skipped
+ */
+static int lz77_skip(uint8_t *buf, struct hash_node *hash_nodes, uint32_t *nr_hash_nodes, struct hash_node **hash_table, uint8_t *ptr, uint32_t len)
+{
+	uint32_t i, index;
+
+	/* hash skipped bytes */
+	for (i = 0; i < len; i++) {
+		index = __lz77_hash(&ptr[i]);
+		hash_table[index] = __hash_add_node(hash_nodes, nr_hash_nodes, ptr + i - buf, hash_table[index]);
+	}
+
+	return len;
+}
+
+/**
+ * @brief Compress a buffer with LZ77 algorithm.
+ * 
+ * @param buf 			input buffer
+ * @param len 			input buffer length
+ * @param max_match_len		maximum match length
+ * @param max_match_dis		maximum match distance
+ * 
+ * @return output LZ77 nodes
+ */
+struct lz77_node *lz77_compress_buf(uint8_t *src, uint32_t src_len, uint32_t max_match_len, uint32_t max_match_dist)
+{
+	struct lz77_node *lz77_head = NULL, *lz77_tail = NULL;
+	struct hash_node **hash_table, *hash_nodes, *hash_match;
+	uint32_t i, index, nr_hash_nodes;
+	struct lz77_node *lz77_node;
+	uint8_t *ptr;
+
+	/* create nodes array */
+	hash_nodes = (struct hash_node *) xmalloc(sizeof(struct hash_node) * src_len);
+	nr_hash_nodes = 0;
+
+	/* create hash table */
+	hash_table = (struct hash_node **) xmalloc(sizeof(struct hash_node *) * LZ77_HASH_SIZE);
+	for (i = 0; i < LZ77_HASH_SIZE; i++)
+		hash_table[i] = NULL;
+
+	/* find matching patterns */
+	for (ptr = src; ptr + LZ77_MIN_LEN - 1 - src < src_len; ptr++) {
+		/* compute next 3 characters hash */
+		index = __lz77_hash(ptr);
+
+		/* add it to hash table */
+		hash_match = hash_table[index];
+		hash_table[index] = __hash_add_node(hash_nodes, &nr_hash_nodes, ptr - src, hash_match);
+
+		/* find best match */
+		lz77_node = __lz77_best_match(hash_match, src, src_len, ptr, max_match_len, max_match_dist);
+
+		/* add node to list */
+		if (!lz77_head) {
+			lz77_head = lz77_node;
+			lz77_tail = lz77_node;
+		} else {
+			lz77_tail->next = lz77_node;
+			lz77_tail = lz77_node;
+		}
+
+		/* skip match */
+		if (lz77_node->is_literal == 0)
+			ptr += lz77_skip(src, hash_nodes, &nr_hash_nodes, hash_table, ptr, lz77_node->data.match.length - 1);
+	}
+
+	/* add remaining bytes */
+	for (; ptr - src < src_len; ptr++) {
+		/* create a literal node */
+		lz77_node = __lz77_create_literal_node(*ptr);
+
+		/* add node to list */
+		if (!lz77_head) {
+			lz77_head = lz77_node;
+			lz77_tail = lz77_node;
+		} else {
+			lz77_tail->next = lz77_node;
+			lz77_tail = lz77_node;
+		}
+	}
+
+	/* free hash table and nodes */
+	xfree(hash_table);
+	xfree(hash_nodes);
+
+	/* return lz77 nodes */
+	return lz77_head;
+}
+
+/**
+ * @brief Free LZ77 nodes.
+ * 
+ * @param node 		LZ77 nodes
+ */
+void deflate_lz77_free_nodes(struct lz77_node *node)
+{
+	if (!node)
 		return;
 
-	/* remember position */
-	pos = *buf_out - *dst;
-
-	/* reallocate destination buffer */
-	*dst_capacity += GROW_SIZE;
-	*dst = xrealloc(*dst, *dst_capacity);
-	
-	/* set new position */
-	*buf_out = *dst + pos;
+	deflate_lz77_free_nodes(node->next);
+	xfree(node);
 }
 
 /**
@@ -104,49 +283,38 @@ static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capaci
  */
 uint8_t *lz77_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
-	uint8_t *dst, *window, *buf_in, *buf_out;
-	uint32_t window_size, dst_capacity;
-	struct lz77_node node;
-
-	/* allocate destination buffer */
-	dst_capacity = MAX(src_len, WINDOW_SIZE + sizeof(uint32_t));
-	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
+	struct bit_stream bs_out = { 0 };
+	struct lz77_node *nodes, *node;
 
 	/* write uncompressed length first */
-	*((uint32_t *) buf_out) = htole32(src_len);
-	buf_out += sizeof(uint32_t);
+	bit_stream_write_bits(&bs_out, htole32(src_len), 32, BIT_ORDER_MSB);
 
-	/* set input buffer and initial window */
-	buf_in = window = src;
+	/* compress input buffer */
+	nodes = lz77_compress_buf(src, src_len, 255, 32768);
 
-	/* copy first window to destination */
-	window_size = src_len < WINDOW_SIZE ? src_len : WINDOW_SIZE;
-	memcpy(buf_out, window, window_size);
-	buf_in += window_size;
-	buf_out += window_size;
+	/* write lz77 nodes */
+	for (node = nodes; node != NULL; node = node->next) {
+		/* write node type */
+		bit_stream_write_bits(&bs_out, node->is_literal, 1, BIT_ORDER_MSB);
 
-	/* compress nodes */
-	while (buf_in < src + src_len) {
-		/* find best match */
-		__lz77_match(window, buf_in, src + src_len - buf_in - 1, &node);
-
-		/* grow destination buffer if needed */
-		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(uint8_t) * 3);
-
-		/* write match or literal */
-		*buf_out++ = node.off;
-		*buf_out++ = node.len;
-		*buf_out++ = node.literal;
-
-		/* update window and buffer */
-		window += node.len + 1;
-		buf_in += node.len + 1;
+		/* write literal */
+		if (node->is_literal) {
+			bit_stream_write_bits(&bs_out, node->data.literal, 8, BIT_ORDER_MSB);
+			continue;
+		}
+		
+		/* write match */
+		bit_stream_write_bits(&bs_out, htole16(node->data.match.distance), 16, BIT_ORDER_MSB);
+		bit_stream_write_bits(&bs_out, node->data.match.length, 8, BIT_ORDER_MSB);
 	}
 
-	/* set destination length */
-	*dst_len = buf_out - dst;
+	/* flush last byte */
+	bit_stream_flush(&bs_out);
 
-	return dst;
+	/* set destination length */
+	*dst_len = bs_out.byte_offset;
+
+	return bs_out.buf;
 }
 
 /**
@@ -160,42 +328,38 @@ uint8_t *lz77_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
  */
 uint8_t *lz77_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
-	uint8_t *dst, *buf_in, *buf_out;
-	struct lz77_node *node;
-	uint32_t window_size;
+	uint32_t is_literal, distance, length, i, n;
+	struct bit_stream bs_in = { 0 };
+	uint8_t *buf_out;
+
+	/* set input bit stream */
+	bs_in.buf = src;
 
 	/* read uncompressed length first */
-	*dst_len = le32toh(*((uint32_t *) src));
-	src += sizeof(uint32_t);
-	src_len -= sizeof(uint32_t);
-	
-	/* set input buffer */
-	buf_in = src;
-	
-	/* allocate destination buffer */
-	dst = buf_out = (uint8_t *) xmalloc(*dst_len);
+	*dst_len = bit_stream_read_bits(&bs_in, 32, BIT_ORDER_MSB);
 
-	/* copy first window to destination */
-	window_size = src_len < WINDOW_SIZE ? src_len : WINDOW_SIZE;
-	memcpy(buf_out, buf_in, window_size);
-	buf_in += window_size;
-	buf_out += window_size;
+	/* allocate output buffer */
+	buf_out = (uint8_t *) xmalloc(*dst_len);
 
-	/* uncompress nodes */
-	while (buf_in < src + src_len) {
-		/* read lz77 node */
-		node = (struct lz77_node *) buf_in;
-		buf_in += sizeof(struct lz77_node);
+	/* read lz77 nodes */
+	for (n = 0; n < *dst_len && bs_in.byte_offset < src_len;) {
+		/* read node type */
+		is_literal = bit_stream_read_bits(&bs_in, 1, BIT_ORDER_MSB);
 
-		/* retrieve match */
-		if (node->len > 0) {
-			memcpy(buf_out, buf_out - node->off, node->len);
-			buf_out += node->len;
+		/* read literal */
+		if (is_literal) {
+			buf_out[n++] = bit_stream_read_bits(&bs_in, 8, BIT_ORDER_MSB);
+			continue;
 		}
 
-		/* set next literal */
-		*buf_out++ = node->literal;
+		/* read match */
+		distance = le16toh(bit_stream_read_bits(&bs_in, 16, BIT_ORDER_MSB));
+		length = bit_stream_read_bits(&bs_in, 8, BIT_ORDER_MSB);
+
+		/* duplicate pattern */
+		for (i = 0; i < length; i++, n++)
+			buf_out[n] = buf_out[n - distance];
 	}
 
-	return dst;
+	return buf_out;
 }

@@ -1,7 +1,7 @@
 #ifndef _DEFLATE_HUFFMAN_H_
 #define _DEFLATE_HUFFMAN_H_
 
-#include "lz77.h"
+#include "../lz77/lz77.h"
 #include "../huffman/huffman_table.h"
 #include "../utils/bit_stream.h"
 
