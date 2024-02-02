@@ -137,8 +137,8 @@ uint8_t *lz78_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
  */
 uint8_t *lz78_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
-	struct trie **dict, *root, *parent, *node;
-	int dict_size, id = 0, parent_id, i, j;
+	int dict_size, id = 0, node_id, i, j;
+	struct trie **dict, *root, *node, *tmp;
 	uint8_t *dst, *buf_in, *buf_out, c;
 
 	/* read uncompressed length first */
@@ -167,18 +167,18 @@ uint8_t *lz78_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 	/* uncompress */
 	while (buf_in < src + src_len) {
 		/* read node id */
-		parent_id = le32toh(*((int *) buf_in));
+		node_id = le32toh(*((int *) buf_in));
 		buf_in += sizeof(int);
 		
-		/* get parent node */
-		parent = dict[parent_id];
+		/* get node */
+		node = dict[node_id];
 
 		/* compute dict entry size */
-		for (node = parent, i = 0; node->parent != NULL; node = node->parent, i++);
+		for (tmp = node, i = 0; tmp->parent != NULL; tmp = tmp->parent, i++);
 
 		/* write decoded string */
-		for (node = parent, j = 0; node->parent != NULL; node = node->parent, j++)
-			buf_out[i - 1 - j] = node->val;
+		for (tmp = node, j = 0; tmp->parent != NULL; tmp = tmp->parent, j++)
+			buf_out[i - 1 - j] = tmp->val;
 		
 		/* update output buffer position */
 		buf_out += i;
@@ -191,8 +191,8 @@ uint8_t *lz78_uncompress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		c = *buf_in++;
 
 		/* insert new node */
-		trie_insert(parent, c, id++);
-		node = trie_find(parent, c);
+		trie_insert(node, c, id++);
+		node = trie_find(node, c);
 		dict[node->id] = node;
 
 		/* write next character */
