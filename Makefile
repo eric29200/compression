@@ -3,7 +3,7 @@ CC      := gcc
 
 all: test
 
-test: utils/mem.o utils/heap.o utils/trie.o utils/bit_stream.o										\
+test: utils/mem.o utils/heap.o utils/trie.o utils/bit_stream.o utils/byte_stream.o							\
 	rle/rle.o 															\
 	lz77/lz77.o 															\
 	lz78/lz78.o 															\

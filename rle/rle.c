@@ -6,35 +6,7 @@
 
 #include "rle.h"
 #include "../utils/mem.h"
-
-#define GROW_SIZE		64
-
-/**
- * @brief Grow output buffer if needed.
- * 
- * @param dst 			output buffer
- * @param buf_out 		current position in output buffer
- * @param dst_capacity 		output buffer capacity
- * @param size_needed		size needed
- */
-static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capacity, uint32_t size_needed)
-{
-	uint32_t pos;
-
-	/* no need to grower buffer */
-	if ((uint32_t) (*buf_out - *dst + size_needed) <= *dst_capacity)
-		return;
-
-	/* remember position */
-	pos = *buf_out - *dst;
-
-	/* reallocate destination buffer */
-	*dst_capacity += GROW_SIZE;
-	*dst = xrealloc(*dst, *dst_capacity);
-	
-	/* set new position */
-	*buf_out = *dst + pos;
-}
+#include "../utils/byte_stream.h"
 
 /**
  * @brief Compress a buffer with Run-Length Encoding algorithm.
@@ -47,40 +19,31 @@ static void __grow_buffer(uint8_t **dst, uint8_t **buf_out, uint32_t *dst_capaci
  */
 uint8_t *rle_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
-	uint32_t i, j, dst_capacity;
-	uint8_t *dst, *buf_out;
-
-	/* allocate output buffer */
-	dst_capacity = src_len;
-	dst = buf_out = (uint8_t *) xmalloc(dst_capacity);
+	struct byte_stream bs_out = { 0 };
+	uint32_t i, j;
 
 	/* write uncompressed length */
-	*((uint32_t *) buf_out) = htole32(src_len);
-	buf_out += sizeof(uint32_t);
+	byte_stream_write_u32(&bs_out, htole32(src_len));
 
 	/* compress */
 	for (i = 0; i < src_len;) {
 		/* look for same following characters */
 		for (j = 0; j < UINT8_MAX && i + j < src_len && src[i] == src[i + j]; j++);
 
-		/* grow buffer if needed */
-		__grow_buffer(&dst, &buf_out, &dst_capacity, sizeof(uint32_t) + sizeof(uint8_t));
-
 		/* write number of occurences */
-		*((uint8_t *) buf_out) = (uint8_t) j;
-		buf_out += sizeof(uint8_t);
+		byte_stream_write_u8(&bs_out, j);
 
 		/* write character */
-		*buf_out++ = src[i];
+		byte_stream_write_u8(&bs_out, src[i]);
 
 		/* go to next character */
 		i += j;
 	}
 
-	/* compute destination length */
-	*dst_len = buf_out - dst;
+	/* set destination length */
+	*dst_len = bs_out.size;
 
-	return dst;
+	return bs_out.buf;
 }
 
 /**

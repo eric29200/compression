@@ -8,6 +8,7 @@
 #include "huffman.h"
 #include "no_compression.h"
 #include "../utils/bit_stream.h"
+#include "../utils/byte_stream.h"
 #include "../utils/mem.h"
 
 #define DEFLATE_BLOCK_SIZE			0xFFFF
@@ -114,14 +115,10 @@ static struct bit_stream *__compress_block(uint8_t *block, uint16_t block_len, i
 uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 {
 	struct bit_stream bs_fix_huff = { 0 }, bs_dyn_huff = { 0 }, bs_no = { 0 }, *bs;
-	uint32_t dst_capacity;
-	uint8_t *dst, *block;
+	struct byte_stream bs_out = { 0 };
 	uint16_t block_len;
 	int last_block = 0;
-
-	/* allocate output buffer */
-	dst_capacity = *dst_len = 0;
-	dst = NULL;
+	uint8_t *block;
 
 	/* compress block by block */
 	for (block = src; block < src + src_len; block += block_len) {
@@ -135,15 +132,8 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		/* compress block */
 		bs = __compress_block(block, block_len, last_block, &bs_fix_huff, &bs_dyn_huff, &bs_no);
 
-		/* grow output buffer if needed */
-		if (*dst_len + bs->byte_offset > dst_capacity) {
-			dst_capacity = *dst_len + bs->byte_offset;
-			dst = xrealloc(dst, dst_capacity);
-		}
-
 		/* copy bit stream to output buffer */
-		memcpy(dst + *dst_len, bs->buf, bs->byte_offset);
-		*dst_len += bs->byte_offset;
+		byte_stream_write(&bs_out, bs->buf, bs->byte_offset);
 
 		/* clear bit streams (remember last byte) */
 		bs_fix_huff.buf[0] = bs_dyn_huff.buf[0] = bs_no.buf[0] = bs->buf[bs->byte_offset];
@@ -151,26 +141,21 @@ uint8_t *deflate_compress(uint8_t *src, uint32_t src_len, uint32_t *dst_len)
 		bs_fix_huff.byte_offset = bs_dyn_huff.byte_offset = bs_no.byte_offset = 0;
 	}
 
-	/* grow output buffer if needed (for crc and source length) */
-	if (*dst_len + sizeof(uint32_t) * 2 > dst_capacity) {
-		dst_capacity = *dst_len + sizeof(uint32_t) * 2;
-		dst = xrealloc(dst, dst_capacity);
-	}
-
 	/* write crc */
-	*((uint32_t *) (dst + *dst_len)) = htole32(__crc32(src, src_len, ~0));
-	*dst_len += sizeof(uint32_t);
+	byte_stream_write_u32(&bs_out, htole32(__crc32(src, src_len, ~0)));
 
 	/* write uncompressed length */
-	*((uint32_t *) (dst + *dst_len)) = htole32(src_len);
-	*dst_len += sizeof(uint32_t);
+	byte_stream_write_u32(&bs_out, htole32(src_len));
 
 	/* free bit streams */
 	xfree(bs_fix_huff.buf);
 	xfree(bs_dyn_huff.buf);
 	xfree(bs_no.buf);
 
-	return dst;
+	/* set destination length */
+	*dst_len = bs_out.size;
+
+	return bs_out.buf;
 }
 
 /**
