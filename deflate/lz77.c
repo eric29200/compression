@@ -12,6 +12,8 @@
 #include "../utils/mem.h"
 
 #define LZ77_MIN_LEN			3
+#define LZ77_MAX_LEN			258
+#define LZ77_MAX_DIST			32768
 #define LZ77_HASH_SIZE			32768
 
 /**
@@ -111,12 +113,10 @@ static struct lz77_node *__lz77_create_match_node(int distance, uint32_t length)
  * @param buf 			input buffer
  * @param len 			input buffer length
  * @param ptr 			current pointer in input buffer
- * @param max_match_len		maximum match length
- * @param max_match_dist	maximum match distance
  *
  * @return LZ77 node (match or literal)
  */
-static struct lz77_node *__lz77_best_match(struct hash_node *hash_match, uint8_t *buf, int len, uint8_t *ptr, uint32_t max_match_len, uint32_t max_match_dist)
+static struct lz77_node *__lz77_best_match(struct hash_node *hash_match, uint8_t *buf, int len, uint8_t *ptr)
 {
 	uint32_t max, len_max = 0, i;
 	struct hash_node *match_max;
@@ -124,15 +124,15 @@ static struct lz77_node *__lz77_best_match(struct hash_node *hash_match, uint8_t
 
 	/* compute maximum match length */
 	max = len - (ptr - buf);
-	if (max > max_match_len)
-		max = max_match_len;
+	if (max > LZ77_MAX_LEN)
+		max = LZ77_MAX_LEN;
 
 	/* for each match */
 	for (; hash_match != NULL; hash_match = hash_match->next) {
 		match_buf = buf + hash_match->index;
 
 		/* match too far */
-		if (ptr - match_buf > max_match_dist)
+		if (ptr - match_buf > LZ77_MAX_DIST)
 			break;
 
 		/* no way to improve best match */
@@ -187,12 +187,10 @@ static int __lz77_skip(uint8_t *buf, struct hash_node *hash_nodes, uint32_t *nr_
  * 
  * @param buf 			input buffer
  * @param len 			input buffer length
- * @param max_match_len		maximum match length
- * @param max_match_dis		maximum match distance
  * 
  * @return output LZ77 nodes
  */
-struct lz77_node *deflate_lz77_compress(uint8_t *src, uint32_t src_len, uint32_t max_match_len, uint32_t max_match_dist)
+struct lz77_node *deflate_lz77_compress(uint8_t *src, uint32_t src_len)
 {
 	struct lz77_node *lz77_head = NULL, *lz77_tail = NULL;
 	struct hash_node **hash_table, *hash_nodes, *hash_match;
@@ -219,7 +217,7 @@ struct lz77_node *deflate_lz77_compress(uint8_t *src, uint32_t src_len, uint32_t
 		hash_table[index] = __hash_add_node(hash_nodes, &nr_hash_nodes, ptr - src, hash_match);
 
 		/* find best match */
-		lz77_node = __lz77_best_match(hash_match, src, src_len, ptr, max_match_len, max_match_dist);
+		lz77_node = __lz77_best_match(hash_match, src, src_len, ptr);
 
 		/* add node to list */
 		if (!lz77_head) {

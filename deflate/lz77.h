@@ -29,12 +29,10 @@ struct lz77_node {
  * 
  * @param buf 			input buffer
  * @param len 			input buffer length
- * @param max_match_len		maximum match length
- * @param max_match_dis		maximum match distance
  * 
  * @return output LZ77 nodes
  */
-struct lz77_node *deflate_lz77_compress(uint8_t *src, uint32_t src_len, uint32_t max_match_len, uint32_t max_match_dist);
+struct lz77_node *deflate_lz77_compress(uint8_t *src, uint32_t src_len);
 
 /**
  * @brief Free LZ77 nodes.
