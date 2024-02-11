@@ -5,18 +5,18 @@
 #include "lz77/lz77.h"
 #include "lzss/lzss.h"
 #include "lz78/lz78.h"
-#include "lzw/lzw.h"
 #include "huffman/huffman.h"
 #include "deflate/deflate.h"
 #include "utils/mem.h"
+
+#define DEFAULT_INPUT_FILE	"./data/miserables.txt"
 
 #define COMPRESSION_RLE		1
 #define COMPRESSION_LZ77	2
 #define COMPRESSION_LZSS	3
 #define COMPRESSION_LZ78	4
-#define COMPRESSION_LZW		5
-#define COMPRESSION_HUFFMAN	6
-#define COMPRESSION_DEFLATE	7
+#define COMPRESSION_HUFFMAN	5
+#define COMPRESSION_DEFLATE	6
 
 /**
  * @brief Read input file.
@@ -103,9 +103,6 @@ static void compression_test(uint8_t *src, uint32_t src_len, int compression_alg
 		case COMPRESSION_LZ78:
 			zip = lz78_compress(src, src_len, &zip_len);
 			break;
-		case COMPRESSION_LZW:
-			zip = lzw_compress(src, src_len, &zip_len);
-			break;
 		case COMPRESSION_HUFFMAN:
 			zip = huffman_compress(src, src_len, &zip_len);
 			break;
@@ -134,9 +131,6 @@ static void compression_test(uint8_t *src, uint32_t src_len, int compression_alg
 		case COMPRESSION_LZ78:
 			unzip = lz78_uncompress(zip, zip_len, &unzip_len);
 			break;
-		case COMPRESSION_LZW:
-			unzip = lzw_uncompress(zip, zip_len, &unzip_len);
-			break;
 		case COMPRESSION_HUFFMAN:
 			unzip = huffman_uncompress(zip, zip_len, &unzip_len);
 			break;
@@ -163,17 +157,21 @@ static void compression_test(uint8_t *src, uint32_t src_len, int compression_alg
 
 int main(int argc, char **argv)
 {
+	const char *input_file;
 	uint32_t src_len;
 	uint8_t *src;
 
 	/* check arguments */
-	if (argc != 2) {
-		fprintf(stderr, "%s input_file\n", argv[0]);
+	if (argc > 2) {
+		fprintf(stderr, "%s [input_file]\n", argv[0]);
 		return 1;
 	}
 
+	/* set input file */
+	input_file = argc > 1 ? argv[1] : DEFAULT_INPUT_FILE;
+
 	/* read input file */
-	src = read_input_file(argv[1], &src_len);
+	src = read_input_file(input_file, &src_len);
 	if (!src)
 		return 1;
 
@@ -182,7 +180,6 @@ int main(int argc, char **argv)
 	compression_test(src, src_len, COMPRESSION_LZ77, "LZ77");
 	compression_test(src, src_len, COMPRESSION_LZSS, "LZSS");
 	compression_test(src, src_len, COMPRESSION_LZ78, "LZ78");
-	compression_test(src, src_len, COMPRESSION_LZW, "LZW");
 	compression_test(src, src_len, COMPRESSION_HUFFMAN, "HUFFMAN");
 	compression_test(src, src_len, COMPRESSION_DEFLATE, "DEFLATE");
 

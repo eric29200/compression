@@ -8,7 +8,6 @@ test: utils/mem.o utils/heap.o utils/trie.o utils/bit_stream.o utils/byte_stream
 	lz77/lz77.o 														\
 	lzss/lzss.o 														\
 	lz78/lz78.o 														\
-	lzw/lzw.o 														\
 	huffman/huffman_tree.o huffman/huffman_table.o huffman/huffman.o 							\
 	deflate/huffman.o deflate/lz77.o deflate/fix_huffman.o deflate/dyn_huffman.o deflate/no_compression.o deflate/deflate.o	\
 	test.o
