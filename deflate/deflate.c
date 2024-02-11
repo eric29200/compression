@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "deflate.h"
-#include "../lz77/lz77.h"
+#include "lz77.h"
 #include "huffman.h"
 #include "no_compression.h"
 #include "../utils/bit_stream.h"
@@ -71,7 +71,7 @@ static struct bit_stream *__compress_block(uint8_t *block, uint16_t block_len, i
 	struct bit_stream *bs;
 
 	/* lz77 compression */
-	lz77_nodes = lz77_compress_buf(block, block_len, DEFLATE_LZ77_MAX_LEN, DEFLATE_LZ77_MAX_DIST);
+	lz77_nodes = deflate_lz77_compress(block, block_len, DEFLATE_LZ77_MAX_LEN, DEFLATE_LZ77_MAX_DIST);
 
 	/* fix huffman compression */
 	bit_stream_write_bits(bs_fix_huff, last_block, 1, BIT_ORDER_LSB);
