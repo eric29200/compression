@@ -14,9 +14,7 @@
 #include "../utils/mem.h"
 
 #define WINDOW_SIZE		255
-#define GROW_SIZE		64
 #define MIN(x, y)		((x) < (y) ? (x) : (y))
-#define MAX(x, y)		((x) > (y) ? (x) : (y))
 
 /**
  * @brief LZ77 node.
